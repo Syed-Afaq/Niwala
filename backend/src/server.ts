@@ -1,22 +1,18 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { Pool } from 'pg';
+import { prisma } from './lib/prisma';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
 app.get('/health', async (_req: Request, res: Response) => {
   try {
-    await pool.query('SELECT 1');
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: 'ok', db: 'connected' });
   } catch (err) {
-    res.status(500).json({ status: 'ok', db: 'unreachable' });
+    res.status(500).json({ status: 'error', db: 'unreachable' });
   }
 });
 

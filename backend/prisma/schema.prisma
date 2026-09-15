@@ -1,0 +1,141 @@
+// Niwala — Prisma schema
+//
+// Scope is deliberately limited to the six entities the screening requires:
+// User, Restaurant, Meal, Order, OrderItem, OrderStatusHistory.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// The two application roles. No admin/driver/etc.
+enum Role {
+  REGULAR_USER
+  RESTAURANT_OWNER
+}
+
+/// Order lifecycle. Transitions are forward-only and are enforced in the
+/// service layer (Phase 6), not by the database.
+///
+///   PLACED -> PROCESSING -> IN_ROUTE -> DELIVERED -> RECEIVED
+///   PLACED -> CANCELED
+enum OrderStatus {
+  PLACED
+  CANCELED
+  PROCESSING
+  IN_ROUTE
+  DELIVERED
+  RECEIVED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  /// Set by a restaurant owner. A blocked REGULAR_USER cannot place new orders.
+  isBlocked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  /// Restaurants this user owns (RESTAURANT_OWNER only).
+  restaurants   Restaurant[]
+  /// Orders this user placed (REGULAR_USER only).
+  orders        Order[]
+  /// Status transitions this user performed.
+  statusChanges OrderStatusHistory[]
+
+  @@index([role])
+}
+
+model Restaurant {
+  id          String   @id @default(uuid())
+  ownerId     String
+  name        String
+  description String
+  foodType    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner  User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  meals  Meal[]
+  orders Order[]
+
+  @@index([ownerId])
+}
+
+model Meal {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String
+  price        Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  /// Restrict: a meal that has been ordered cannot be deleted, so historical
+  /// orders never lose their line items.
+  orderItems OrderItem[]
+
+  @@index([restaurantId])
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  userId       String
+  restaurantId String
+  /// Always computed server-side from meal prices; never taken from the client.
+  totalAmount  Decimal     @db.Decimal(10, 2)
+  status       OrderStatus @default(PLACED)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items      OrderItem[]
+  history    OrderStatusHistory[]
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  mealId    String
+  quantity  Int
+  /// Snapshot of Meal.price at the time the order was placed, so later price
+  /// changes do not rewrite order history.
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  meal  Meal  @relation(fields: [mealId], references: [id], onDelete: Restrict)
+
+  /// One line per meal per order; repeats are expressed with quantity.
+  @@unique([orderId, mealId])
+  @@index([orderId])
+  @@index([mealId])
+}
+
+model OrderStatusHistory {
+  id             String       @id @default(uuid())
+  orderId        String
+  /// Null for the initial PLACED record.
+  previousStatus OrderStatus?
+  newStatus      OrderStatus
+  changedById    String
+  changedAt      DateTime     @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Restrict: the audit trail must not lose its actor.
+  changedBy User  @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([changedById])
+}
