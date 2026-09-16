@@ -53,7 +53,7 @@ React Native (Expo) -> REST API -> Express + TypeScript -> Prisma -> PostgreSQL
 
 ## Quick start
 
-You need Docker, Node 18 or newer, and npm.
+You need Docker, **Node 20.19 or newer** (React Native 0.86 requires it), and npm.
 
 **1. Start PostgreSQL**
 
@@ -74,8 +74,11 @@ cd backend
 cp .env.example .env
 npm install
 npx prisma migrate dev
+npm run prisma:seed
 npm run dev
 ```
+
+On Windows Command Prompt, use `copy .env.example .env` instead of `cp`.
 
 The API listens on http://localhost:4000. Check it:
 
@@ -83,12 +86,10 @@ The API listens on http://localhost:4000. Check it:
 curl http://localhost:4000/health
 ```
 
-`prisma migrate dev` creates the schema and runs the seed: four demo accounts,
-three restaurants and nine dishes, all with photos. To reseed later:
-
-```bash
-npm run prisma:seed
-```
+`prisma migrate dev` creates the tables. `npm run prisma:seed` fills them with
+four demo accounts, three restaurants and nine dishes, all with photos. **Do not
+skip the seed** - without it the app is empty and the demo accounts do not
+exist. It is safe to run again at any time.
 
 **3. Start the app**
 
@@ -99,7 +100,7 @@ npx expo start
 ```
 
 Press `w` to open it in a browser, `a` for an Android emulator or `i` for the
-iOS simulator, or scan the QR code with Expo Go.
+iOS simulator, or scan the QR code with the latest Expo Go app on a phone.
 
 **Running on a phone.** A phone cannot reach your computer through
 `localhost`, so tell the app your computer's address on the local network
