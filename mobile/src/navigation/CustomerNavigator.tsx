@@ -8,6 +8,7 @@ import { OrdersScreen } from '../screens/customer/OrdersScreen';
 import { OrderDetailScreen } from '../screens/customer/OrderDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { useCart } from '../cart/CartContext';
+import { TabIcon } from '../components/TabIcon';
 import { colors } from '../theme/theme';
 
 const BrowseStack = createNativeStackNavigator();
@@ -93,8 +94,14 @@ export function CustomerNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 72,
+          paddingTop: 8,
+          paddingBottom: 14,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -102,6 +109,7 @@ export function CustomerNavigator() {
         component={BrowseNavigator}
         options={{
           title: 'Restaurants',
+          tabBarIcon: ({ color }) => <TabIcon name="restaurants" color={color} />,
           // The cart lives inside this stack, so the count belongs here.
           tabBarBadge: cart.itemCount > 0 ? cart.itemCount : undefined,
         }}
@@ -109,9 +117,19 @@ export function CustomerNavigator() {
       <Tabs.Screen
         name="Orders"
         component={OrdersNavigator}
-        options={{ title: 'Orders' }}
+        options={{
+          title: 'Orders',
+          tabBarIcon: ({ color }) => <TabIcon name="orders" color={color} />,
+        }}
       />
-      <Tabs.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
+      <Tabs.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          title: 'Account',
+          tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
+        }}
+      />
     </Tabs.Navigator>
   );
 }

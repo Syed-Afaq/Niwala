@@ -54,14 +54,23 @@ export function StatusTimeline({ history }: { history: OrderStatusHistory[] }) {
     <View>
       {history.map((entry, index) => {
         const isLast = index === history.length - 1;
+        // A cancelled order should not end on a cheerful orange dot.
+        const currentColor =
+          entry.newStatus === 'CANCELED'
+            ? colors.error
+            : entry.newStatus === 'RECEIVED'
+              ? colors.success
+              : colors.primary;
         return (
           <View key={entry.id} style={styles.step}>
             <View style={styles.rail}>
-              <View style={[styles.dot, isLast ? styles.dotCurrent : null]} />
+              <View
+                style={[styles.dot, isLast ? { backgroundColor: currentColor } : null]}
+              />
               {!isLast ? <View style={styles.line} /> : null}
             </View>
             <View style={styles.stepBody}>
-              <Text style={[type.subheading, isLast ? { color: colors.primaryDark } : null]}>
+              <Text style={[type.subheading, isLast ? { color: currentColor } : null]}>
                 {STATUS_LABEL[entry.newStatus]}
               </Text>
               <Text style={type.muted}>{formatTime(entry.changedAt)}</Text>
@@ -90,7 +99,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginTop: 5,
   },
-  dotCurrent: { backgroundColor: colors.primary },
   line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
   stepBody: { flex: 1, paddingBottom: spacing.lg },
 });
