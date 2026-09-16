@@ -18,6 +18,7 @@ export function Button({
   loading = false,
   disabled = false,
   style,
+  testID,
 }: {
   label: string;
   onPress: () => void;
@@ -25,6 +26,7 @@ export function Button({
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  testID?: string;
 }) {
   const isDisabled = disabled || loading;
   const palette = {
@@ -36,6 +38,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      testID={testID}
       onPress={onPress}
       disabled={isDisabled}
       style={({ pressed }) => [

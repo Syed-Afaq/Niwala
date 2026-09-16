@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { CustomerNavigator } from './CustomerNavigator';
-import { AccountScreen } from '../screens/AccountScreen';
+import { OwnerNavigator } from './OwnerNavigator';
 import { Loading } from '../components/ui';
 import { colors } from '../theme/theme';
 
@@ -44,11 +44,6 @@ function AuthStack() {
   );
 }
 
-/** Owner experience arrives in the next phase. */
-function OwnerPlaceholder() {
-  return <AccountScreen />;
-}
-
 /**
  * The only place that decides what a caller can reach.
  *
@@ -67,7 +62,7 @@ export function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       {status === 'signedIn' && user ? (
         user.role === 'RESTAURANT_OWNER' ? (
-          <OwnerPlaceholder />
+          <OwnerNavigator />
         ) : (
           <CustomerNavigator />
         )
