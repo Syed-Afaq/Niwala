@@ -1,14 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import React from 'react';
+import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { imageSource } from '../config';
 import { toneFor } from '../theme/theme';
 
 /**
  * A food photo that never shows a broken image.
  *
- * The placeholder - a muted tone chosen from the cuisine plus an initial - is
- * always rendered underneath. When a photo exists it fades in on top once it
- * has loaded, and if it fails to load the placeholder simply stays.
+ * A placeholder - a muted tone chosen from the cuisine plus an initial - is
+ * always drawn underneath, and the photo sits on top at full opacity. An image
+ * that is still loading, or failed, paints nothing, so the placeholder shows
+ * through until the photo arrives.
+ *
+ * The photo is deliberately not hidden until a load event: on react-native-web
+ * Image fires onLoadStart but never onLoad, so any fade gated on onLoad left
+ * loaded photos permanently invisible.
  */
 export function FoodImage({
   path,
@@ -22,19 +27,12 @@ export function FoodImage({
   name: string;
   /** What picks the placeholder colour, typically the cuisine. */
   toneKey: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   initialSize?: number;
 }) {
   const uri = imageSource(path);
-  const [failed, setFailed] = useState(false);
-  const opacity = useRef(new Animated.Value(0)).current;
   const tone = toneFor(toneKey || name);
-
-  // A new photo should fade in again, and get a fresh chance to load.
-  useEffect(() => {
-    setFailed(false);
-    opacity.setValue(0);
-  }, [uri, opacity]);
+  const initial = name.trim().charAt(0).toUpperCase();
 
   return (
     <View
@@ -42,24 +40,16 @@ export function FoodImage({
       accessibilityRole="image"
       accessibilityLabel={name}
     >
-      <Text style={[styles.initial, { color: tone.foreground, fontSize: initialSize }]}>
-        {name.trim().charAt(0).toUpperCase()}
-      </Text>
+      {initial ? (
+        <Text style={[styles.initial, { color: tone.foreground, fontSize: initialSize }]}>
+          {initial}
+        </Text>
+      ) : null}
 
-      {uri && !failed ? (
-        <Animated.Image
-          source={{ uri }}
-          resizeMode="cover"
-          style={[StyleSheet.absoluteFill, { opacity }]}
-          onLoad={() =>
-            Animated.timing(opacity, {
-              toValue: 1,
-              duration: 220,
-              useNativeDriver: true,
-            }).start()
-          }
-          onError={() => setFailed(true)}
-        />
+      {uri ? (
+        // key={uri}: a different photo mounts a fresh image rather than
+        // briefly showing the previous one.
+        <Image key={uri} source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFill} />
       ) : null}
     </View>
   );

@@ -87,8 +87,19 @@ export function toneFor(key: string) {
   return placeholderTones[Math.abs(hash) % placeholderTones.length];
 }
 
-/** Prices arrive as exact decimal strings such as "11.5" - show them as money. */
+/**
+ * Prices arrive as exact decimal strings such as "1250" or "12.5" and are shown
+ * in Pakistani rupees: whole amounts without decimals (Rs. 1,250), anything
+ * with paisa to two places (Rs. 12.50).
+ *
+ * Grouping is done by hand rather than with Intl so the output is identical on
+ * every device and JavaScript engine.
+ */
 export function formatPrice(value: string | number): string {
   const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) ? `$${n.toFixed(2)}` : String(value);
+  if (!Number.isFinite(n)) return String(value);
+  const fixed = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  const [whole, fraction] = fixed.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `Rs. ${fraction ? `${grouped}.${fraction}` : grouped}`;
 }

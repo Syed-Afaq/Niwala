@@ -20,5 +20,7 @@ export const API_BASE_URL =
  */
 export function imageSource(path: string | null | undefined): string | null {
   if (!path) return null;
-  return /^https?:\/\//.test(path) ? path : `${API_BASE_URL}${path}`;
+  // Anything that already has a scheme (http:, file:, blob:, data:, content:)
+  // is used as-is - that includes a photo just picked on the device.
+  return /^[a-z][a-z0-9+.-]*:/i.test(path) ? path : `${API_BASE_URL}${path}`;
 }

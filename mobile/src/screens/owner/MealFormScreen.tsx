@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mealApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
 import { Button, ErrorBanner, TextField } from '../../components/ui';
+import { ImagePickerField } from '../../components/ImagePickerField';
 import { spacing, type } from '../../theme/theme';
 import type { Meal } from '../../api/types';
 
@@ -20,11 +21,18 @@ export function MealFormScreen({
   const isEditing = Boolean(meal);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    description: string;
+    price: string;
+    imageUrl: string | null;
+  }>({
     name: meal?.name ?? '',
     description: meal?.description ?? '',
     price: meal?.price ?? '',
+    imageUrl: meal?.imageUrl ?? null,
   });
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const save = useMutation({
     mutationFn: () => {
@@ -32,6 +40,7 @@ export function MealFormScreen({
         name: form.name,
         description: form.description,
         price: Number(form.price),
+        imageUrl: form.imageUrl,
       };
       return isEditing
         ? mealApi.update((meal as Meal).id, body)
@@ -74,6 +83,17 @@ export function MealFormScreen({
 
       <ErrorBanner message={error} />
 
+      <ImagePickerField
+        label="PHOTO"
+        value={form.imageUrl}
+        onChange={(imageUrl) => setForm((f) => ({ ...f, imageUrl }))}
+        onUploadingChange={setPhotoUploading}
+        aspect={[4, 3]}
+        previewName={form.name}
+        toneKey={form.name}
+        testID="meal-photo"
+      />
+
       <TextField
         label="NAME"
         value={form.name}
@@ -85,7 +105,7 @@ export function MealFormScreen({
         label="PRICE"
         value={String(form.price)}
         onChangeText={(price) => setForm((f) => ({ ...f, price }))}
-        placeholder="11.50"
+        placeholder="450"
         keyboardType="decimal-pad"
         testID="meal-price"
       />
@@ -101,9 +121,10 @@ export function MealFormScreen({
       />
 
       <Button
-        label={isEditing ? 'Save changes' : 'Add meal'}
+        label={photoUploading ? 'Uploading photo' : isEditing ? 'Save changes' : 'Add meal'}
         onPress={handleSave}
         loading={save.isPending}
+        disabled={photoUploading}
       />
     </ScrollView>
   );

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { restaurantApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
 import { useCart } from '../../cart/CartContext';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { FoodImage } from '../../components/FoodImage';
+import { MealCard } from '../../components/MealCard';
+import { CartSummaryBar } from '../../components/CartSummaryBar';
 import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
-import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
+import { colors, radius, spacing, type } from '../../theme/theme';
 import type { Meal } from '../../api/types';
 
 export function RestaurantDetailScreen({
@@ -22,15 +26,17 @@ export function RestaurantDetailScreen({
     queryKey: ['restaurant', restaurantId],
     queryFn: () => restaurantApi.get(restaurantId).then((r) => r.restaurant),
   });
+  const pull = usePullToRefresh(query.refetch);
 
   if (query.isPending) {
     return <Loading label="Loading menu" />;
   }
 
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return (
       <View style={styles.padded}>
         <ErrorBanner message={describeError(query.error)} />
+        <Button label="Try again" variant="secondary" onPress={() => void query.refetch()} />
       </View>
     );
   }
@@ -41,133 +47,117 @@ export function RestaurantDetailScreen({
   function handleAdd(meal: Meal) {
     const replacing = cart.conflictsWith(restaurant.id);
     cart.add({ id: restaurant.id, name: restaurant.name }, meal);
+    // Only speak up when something surprising happened; a normal add is
+    // already confirmed by the button and the cart bar.
     setNotice(
       replacing
-        ? `Your cart was replaced — it can only hold one restaurant at a time. Added ${meal.name}.`
-        : `Added ${meal.name}.`
+        ? 'Your cart can hold one restaurant at a time, so it now only has dishes from here.'
+        : null
     );
   }
 
+  const cartIsElsewhere = cart.restaurant !== null && cart.restaurant.id !== restaurant.id;
+
   return (
-    <View style={styles.flex}>
+    <View style={styles.screen}>
       <FlatList
         data={meals}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={type.title}>{restaurant.name}</Text>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{restaurant.foodType}</Text>
+          <View>
+            <FoodImage
+              path={restaurant.imageUrl}
+              name={restaurant.name}
+              toneKey={restaurant.foodType}
+              style={styles.cover}
+              initialSize={72}
+            />
+
+            <View style={styles.info}>
+              <Text style={styles.cuisine}>{restaurant.foodType}</Text>
+              <Text style={type.title}>{restaurant.name}</Text>
+              <Text style={styles.description}>{restaurant.description}</Text>
+
+              {notice ? (
+                <View style={styles.notice}>
+                  <Text style={styles.noticeText}>{notice}</Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={[type.body, { marginTop: spacing.md }]}>
-              {restaurant.description}
-            </Text>
-            {notice ? (
-              <View style={styles.notice}>
-                <Text style={styles.noticeText}>{notice}</Text>
-              </View>
-            ) : null}
-            <Text style={[type.heading, { marginTop: spacing.xl }]}>Menu</Text>
+
+            <View style={styles.menuHeader}>
+              <Text style={type.heading}>Menu</Text>
+              <Text style={type.meta}>
+                {meals.length} {meals.length === 1 ? 'dish' : 'dishes'}
+              </Text>
+            </View>
           </View>
         }
         ListEmptyComponent={
-          <EmptyState
-            title="Nothing on the menu yet"
-            message="This restaurant has not added any meals so far."
-          />
+          <View style={styles.side}>
+            <EmptyState
+              title="Nothing on the menu yet"
+              message="This restaurant has not added any dishes so far. Check back soon."
+            />
+          </View>
         }
-        renderItem={({ item }) => {
-          const line = cart.lines.find((l) => l.meal.id === item.id);
-          return (
-            <View style={styles.meal} testID={`meal-${item.name}`}>
-              <View style={styles.mealText}>
-                <Text style={type.subheading}>{item.name}</Text>
-                <Text style={[type.muted, { marginTop: 2 }]} numberOfLines={2}>
-                  {item.description}
-                </Text>
-                <Text style={styles.price}>{formatPrice(item.price)}</Text>
-              </View>
-              <Pressable
-                onPress={() => handleAdd(item)}
-                testID={`add-${item.name}`}
-                style={({ pressed }) => [styles.add, pressed ? { opacity: 0.85 } : null]}
-              >
-                <Text style={styles.addText}>{line ? `Add (${line.quantity})` : 'Add'}</Text>
-              </Pressable>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <View style={styles.side}>
+            <MealCard
+              meal={item}
+              toneKey={restaurant.foodType}
+              quantityInCart={cart.lines.find((l) => l.meal.id === item.id)?.quantity ?? 0}
+              onAdd={() => handleAdd(item)}
+              testID={`meal-${item.name}`}
+            />
+          </View>
+        )}
       />
 
-      {cart.itemCount > 0 ? (
-        <View style={styles.cartBar}>
-          <View>
-            <Text style={styles.cartBarTitle}>
-              {cart.itemCount} item{cart.itemCount === 1 ? '' : 's'}
-            </Text>
-            <Text style={styles.cartBarSub}>{cart.restaurant?.name}</Text>
-          </View>
-          <Button label={`View cart  ${formatPrice(cart.total)}`} onPress={onViewCart} />
-        </View>
-      ) : null}
+      <CartSummaryBar
+        itemCount={cart.itemCount}
+        total={cart.total}
+        restaurantName={cartIsElsewhere ? cart.restaurant?.name : undefined}
+        onViewCart={onViewCart}
+      />
     </View>
   );
 }
 
+const MAX_WIDTH = 640;
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  padded: { padding: spacing.lg },
-  list: { padding: spacing.lg, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  header: { marginBottom: spacing.md },
-  tag: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    marginTop: spacing.sm,
+  screen: { flex: 1, backgroundColor: colors.background },
+  padded: { padding: spacing.lg, gap: spacing.md },
+  list: { paddingBottom: spacing.xxl, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
+  cover: { width: '100%', aspectRatio: 16 / 9 },
+  info: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
+  cuisine: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryDark,
+    marginBottom: spacing.xs,
   },
-  tagText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700' },
+  description: { ...type.body, color: colors.textMuted, marginTop: spacing.sm },
   notice: {
     marginTop: spacing.lg,
-    backgroundColor: colors.successSoft,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  noticeText: { color: colors.success, fontSize: 13 },
-  meal: {
+  noticeText: { fontSize: 14, color: colors.primaryDark, lineHeight: 20 },
+  menuHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  mealText: { flex: 1 },
-  price: { ...type.subheading, color: colors.primaryDark, marginTop: spacing.sm },
-  add: {
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primarySoft,
-  },
-  addText: { color: colors.primaryDark, fontWeight: '700', fontSize: 14 },
-  cartBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+    paddingTop: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  cartBarTitle: { ...type.subheading },
-  cartBarSub: { ...type.muted },
+  side: { paddingHorizontal: spacing.lg },
 });

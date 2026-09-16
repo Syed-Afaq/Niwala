@@ -41,7 +41,14 @@ function BrowseNavigator() {
 
       <BrowseStack.Screen
         name="RestaurantDetail"
-        options={({ route }: any) => ({ title: route.params?.name ?? 'Restaurant' })}
+        // The name is already the large title under the cover photo, so the
+        // header shows no title text. `title` still names the screen, which
+        // the browser tab and the back button use.
+        options={({ route }: any) => ({
+          title: route.params?.name ?? 'Restaurant',
+          headerTitle: '',
+          headerShadowVisible: false,
+        })}
       >
         {({ navigation, route }: any) => (
           <RestaurantDetailScreen

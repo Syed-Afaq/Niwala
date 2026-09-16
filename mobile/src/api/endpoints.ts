@@ -29,11 +29,15 @@ export const restaurantApi = {
   list: () => request<{ restaurants: Restaurant[] }>('/restaurants'),
   mine: () => request<{ restaurants: Restaurant[] }>('/restaurants/mine'),
   get: (id: string) => request<{ restaurant: Restaurant }>(`/restaurants/${id}`),
-  create: (body: { name: string; description: string; foodType: string }) =>
-    request<{ restaurant: Restaurant }>('/restaurants', { method: 'POST', body }),
+  create: (body: {
+    name: string;
+    description: string;
+    foodType: string;
+    imageUrl?: string | null;
+  }) => request<{ restaurant: Restaurant }>('/restaurants', { method: 'POST', body }),
   update: (
     id: string,
-    body: Partial<{ name: string; description: string; foodType: string }>
+    body: Partial<{ name: string; description: string; foodType: string; imageUrl: string | null }>
   ) => request<{ restaurant: Restaurant }>(`/restaurants/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => request<void>(`/restaurants/${id}`, { method: 'DELETE' }),
 };
@@ -43,11 +47,11 @@ export const mealApi = {
     request<{ meals: Meal[] }>(`/restaurants/${restaurantId}/meals`),
   create: (
     restaurantId: string,
-    body: { name: string; description: string; price: number }
+    body: { name: string; description: string; price: number; imageUrl?: string | null }
   ) => request<{ meal: Meal }>(`/restaurants/${restaurantId}/meals`, { method: 'POST', body }),
   update: (
     id: string,
-    body: Partial<{ name: string; description: string; price: number }>
+    body: Partial<{ name: string; description: string; price: number; imageUrl: string | null }>
   ) => request<{ meal: Meal }>(`/meals/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => request<void>(`/meals/${id}`, { method: 'DELETE' }),
 };

@@ -69,17 +69,17 @@ const restaurants: SeedRestaurant[] = [
 ];
 
 const meals: SeedMeal[] = [
-  { id: '44444444-4444-4444-8444-000000000001', restaurantId: REST_1, name: 'Margherita Pizza', description: 'San Marzano tomato, fior di latte, basil.', price: '11.50' },
-  { id: '44444444-4444-4444-8444-000000000002', restaurantId: REST_1, name: 'Tagliatelle Bolognese', description: 'Fresh egg pasta with a six-hour beef ragu.', price: '14.00' },
-  { id: '44444444-4444-4444-8444-000000000003', restaurantId: REST_1, name: 'Tiramisu', description: 'Espresso-soaked savoiardi and mascarpone cream.', price: '6.75' },
+  { id: '44444444-4444-4444-8444-000000000001', restaurantId: REST_1, name: 'Margherita Pizza', description: 'San Marzano tomato, fior di latte, basil.', price: '1450' },
+  { id: '44444444-4444-4444-8444-000000000002', restaurantId: REST_1, name: 'Tagliatelle Bolognese', description: 'Fresh egg pasta with a six-hour beef ragu.', price: '1650' },
+  { id: '44444444-4444-4444-8444-000000000003', restaurantId: REST_1, name: 'Tiramisu', description: 'Espresso-soaked savoiardi and mascarpone cream.', price: '750' },
 
-  { id: '44444444-4444-4444-8444-000000000004', restaurantId: REST_2, name: 'Tonkotsu Ramen', description: 'Twelve-hour pork broth, chashu, soft egg.', price: '13.25' },
-  { id: '44444444-4444-4444-8444-000000000005', restaurantId: REST_2, name: 'Chicken Karaage', description: 'Crisp marinated thigh with yuzu mayo.', price: '8.00' },
-  { id: '44444444-4444-4444-8444-000000000006', restaurantId: REST_2, name: 'Matcha Cheesecake', description: 'Baked cheesecake with stone-ground matcha.', price: '7.25' },
+  { id: '44444444-4444-4444-8444-000000000004', restaurantId: REST_2, name: 'Tonkotsu Ramen', description: 'Twelve-hour pork broth, chashu, soft egg.', price: '1850' },
+  { id: '44444444-4444-4444-8444-000000000005', restaurantId: REST_2, name: 'Chicken Karaage', description: 'Crisp marinated thigh with yuzu mayo.', price: '950' },
+  { id: '44444444-4444-4444-8444-000000000006', restaurantId: REST_2, name: 'Matcha Cheesecake', description: 'Baked cheesecake with stone-ground matcha.', price: '850' },
 
-  { id: '44444444-4444-4444-8444-000000000007', restaurantId: REST_3, name: 'Carne Asada Tacos', description: 'Three tacos, grilled steak, onion, cilantro.', price: '10.50' },
-  { id: '44444444-4444-4444-8444-000000000008', restaurantId: REST_3, name: 'Chicken Quesadilla', description: 'Flour tortilla, Oaxaca cheese, pulled chicken.', price: '9.25' },
-  { id: '44444444-4444-4444-8444-000000000009', restaurantId: REST_3, name: 'Elote', description: 'Grilled corn, cotija, lime, chili.', price: '4.50' },
+  { id: '44444444-4444-4444-8444-000000000007', restaurantId: REST_3, name: 'Carne Asada Tacos', description: 'Three tacos, grilled steak, onion, cilantro.', price: '1250' },
+  { id: '44444444-4444-4444-8444-000000000008', restaurantId: REST_3, name: 'Chicken Quesadilla', description: 'Flour tortilla, Oaxaca cheese, pulled chicken.', price: '1100' },
+  { id: '44444444-4444-4444-8444-000000000009', restaurantId: REST_3, name: 'Elote', description: 'Grilled corn, cotija, lime, chili.', price: '450' },
 ];
 
 async function main() {

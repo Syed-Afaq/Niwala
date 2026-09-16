@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { restaurantApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
 import { Button, ErrorBanner, Loading, TextField } from '../../components/ui';
+import { ImagePickerField } from '../../components/ImagePickerField';
 import { spacing, type } from '../../theme/theme';
 
 export function RestaurantFormScreen({
@@ -17,8 +18,14 @@ export function RestaurantFormScreen({
   const isEditing = Boolean(restaurantId);
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', foodType: '' });
+  const [form, setForm] = useState<{
+    name: string;
+    description: string;
+    foodType: string;
+    imageUrl: string | null;
+  }>({ name: '', description: '', foodType: '', imageUrl: null });
   const [loaded, setLoaded] = useState(!isEditing);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const existing = useQuery({
     queryKey: ['restaurant', restaurantId],
@@ -32,6 +39,7 @@ export function RestaurantFormScreen({
       name: existing.data.name,
       description: existing.data.description,
       foodType: existing.data.foodType,
+      imageUrl: existing.data.imageUrl,
     });
     setLoaded(true);
   }
@@ -71,6 +79,17 @@ export function RestaurantFormScreen({
 
       <ErrorBanner message={error} />
 
+      <ImagePickerField
+        label="COVER PHOTO"
+        value={form.imageUrl}
+        onChange={(imageUrl) => setForm((f) => ({ ...f, imageUrl }))}
+        onUploadingChange={setPhotoUploading}
+        aspect={[16, 9]}
+        previewName={form.name}
+        toneKey={form.foodType}
+        testID="restaurant-photo"
+      />
+
       <TextField
         label="NAME"
         value={form.name}
@@ -97,9 +116,10 @@ export function RestaurantFormScreen({
       />
 
       <Button
-        label={isEditing ? 'Save changes' : 'Create restaurant'}
+        label={photoUploading ? 'Uploading photo' : isEditing ? 'Save changes' : 'Create restaurant'}
         onPress={handleSave}
         loading={save.isPending}
+        disabled={photoUploading}
       />
     </ScrollView>
   );

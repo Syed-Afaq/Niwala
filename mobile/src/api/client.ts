@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { API_BASE_URL } from '../config';
 
 /** An error carrying the API's status and message, so screens can show it. */
@@ -76,6 +77,49 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   return payload as T;
+}
+
+/** A photo chosen with the image picker. */
+export type PickedImage = { uri: string; mimeType?: string | null; fileName?: string | null };
+
+/**
+ * Uploads one image and returns the path to store on a restaurant or meal.
+ *
+ * Kept separate from request(), which only speaks JSON. The multipart body is
+ * built differently per platform: native fetch accepts a { uri, name, type }
+ * descriptor, while the web needs the actual file bytes as a Blob.
+ */
+export async function uploadImage(image: PickedImage): Promise<string> {
+  const type = image.mimeType ?? 'image/jpeg';
+  const extension = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
+  const name = image.fileName ?? `photo.${extension}`;
+
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(image.uri)).blob();
+    form.append('image', blob, name);
+  } else {
+    form.append('image', { uri: image.uri, name, type } as unknown as Blob);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/uploads/images`, {
+      method: 'POST',
+      // No Content-Type: fetch adds the multipart boundary itself.
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, 'Could not upload the photo. Check your connection and try again.');
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 401) onUnauthorized?.();
+    throw new ApiError(response.status, payload?.error?.message ?? 'Photo upload failed');
+  }
+  return payload.imageUrl as string;
 }
 
 /** Turns the API's field errors into one readable line. */
