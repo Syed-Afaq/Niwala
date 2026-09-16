@@ -7,9 +7,6 @@ backend/node_modules/
 .env
 *.env.local
 
-# Uploaded images (local disk storage)
-backend/uploads/
-
 # Build output
 backend/dist/
 mobile/.expo/

@@ -1,10 +1,10 @@
-# Niwala
+# NIWALA
 
 A food delivery app built for the Innovage.io technical screening.
 
 Two roles share one system. A **customer** browses restaurants, builds a cart,
 places an order and follows it to the door. A **restaurant owner** manages
-their restaurants and menus, works orders through to delivery, and can block a
+restaurants and menus, works orders through to delivery, and can block a
 customer who abuses the service.
 
 ```
@@ -13,19 +13,47 @@ React Native (Expo) -> REST API -> Express + TypeScript -> Prisma -> PostgreSQL
 
 ## Contents
 
+- [Features](#features)
 - [Quick start](#quick-start)
 - [Demo accounts](#demo-accounts)
 - [Environment variables](#environment-variables)
 - [Project layout](#project-layout)
 - [API reference](#api-reference)
 - [How the rules are enforced](#how-the-rules-are-enforced)
+- [Photos](#photos)
 - [Assumptions](#assumptions)
 - [Testing](#testing)
 - [Known limitations](#known-limitations)
+- [Photo credits](#photo-credits)
+
+## Features
+
+**Customers**
+- Register and sign in; the session survives restarting the app.
+- Browse restaurants as photo-led cards and search them by name or cuisine.
+- Open a menu, add dishes, adjust quantities in the cart and place an order.
+- Follow an order through Placed, Processing, In Route, Delivered and
+  Received, with the time of every step. Cancel while it is still Placed, and
+  confirm receipt once it is Delivered.
+
+**Restaurant owners**
+- Create, edit and delete restaurants and dishes, each with a photo picked from
+  the device.
+- See every order placed with their restaurants, grouped by what needs doing,
+  and move each one on to its next step.
+- Block and unblock customers.
+
+**Throughout**
+- Order screens refresh on their own, so a status change made by the other side
+  appears within a few seconds, and the Orders tab shows a badge for orders that
+  changed since they were last opened.
+- Prices in Pakistani rupees (Rs. 1,250).
+- Loading placeholders, clear error messages with a retry, and empty states
+  that explain what to do next.
 
 ## Quick start
 
-You need Docker, Node 18+, and npm.
+You need Docker, Node 18 or newer, and npm.
 
 **1. Start PostgreSQL**
 
@@ -55,8 +83,8 @@ The API listens on http://localhost:4000. Check it:
 curl http://localhost:4000/health
 ```
 
-`prisma migrate dev` applies the schema and runs the seed, giving you three
-restaurants, nine meals and the four demo accounts below. To reseed later:
+`prisma migrate dev` creates the schema and runs the seed: four demo accounts,
+three restaurants and nine dishes, all with photos. To reseed later:
 
 ```bash
 npm run prisma:seed
@@ -70,85 +98,110 @@ npm install
 npx expo start
 ```
 
-Press `i` for the iOS simulator, `a` for Android, or `w` to open it in a
-browser. Scan the QR code to run it on a physical device.
+Press `w` to open it in a browser, `a` for an Android emulator or `i` for the
+iOS simulator, or scan the QR code with Expo Go.
 
-A device or emulator cannot reach your machine's `localhost`, so point it at
-your LAN address:
+**Running on a phone.** A phone cannot reach your computer through
+`localhost`, so tell the app your computer's address on the local network
+before starting Expo. The phone must be on the same Wi-Fi.
+
+macOS, Linux or Git Bash:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.20:4000 npx expo start
 ```
 
-The Android emulator is handled already: it falls back to `10.0.2.2`, which is
-how it reaches the host.
+Windows Command Prompt:
+
+```
+set "EXPO_PUBLIC_API_URL=http://192.168.1.20:4000" && npx expo start
+```
+
+Windows PowerShell:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL="http://192.168.1.20:4000"; npx expo start
+```
+
+Replace `192.168.1.20` with your own address. The value is built into the app
+when Expo starts, so restart Expo after changing it. The Android emulator needs
+none of this: it reaches the host through `10.0.2.2` automatically.
 
 ## Demo accounts
 
 Every seeded account uses the password `password123`.
 
-| Email | Role | What they have |
+| Email | Role | Restaurants |
 | --- | --- | --- |
 | `user1@niwala.test` | Customer | - |
 | `user2@niwala.test` | Customer | - |
 | `owner1@niwala.test` | Restaurant owner | Bella Napoli, Sakura Ramen |
 | `owner2@niwala.test` | Restaurant owner | Taco Libre |
 
-To see both sides of an order, sign in as `user1`, place an order with Bella
-Napoli, then sign in as `owner1` to work it through to delivered.
+To see both sides of an order, sign in as `user1` on a phone and as `owner1` in
+a browser. Place an order with Bella Napoli, then move it along from the owner
+side and watch the customer screen follow.
 
 ## Environment variables
 
-Copy `backend/.env.example` to `backend/.env`. Nothing secret is committed.
+Copy `backend/.env.example` to `backend/.env`. No secrets are committed.
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string. Matches `docker-compose.yml`. |
 | `PORT` | Port the API listens on. Defaults to 4000. |
-| `JWT_SECRET` | Signs tokens. Must be at least 16 characters. Use a long random string outside development. |
+| `JWT_SECRET` | Signs tokens. At least 16 characters; use a long random string outside development. |
 | `JWT_EXPIRES_IN` | Token lifetime, e.g. `30m`, `12h`, `7d`. |
 
-Configuration is validated at startup, so the server refuses to boot on a
-missing `DATABASE_URL` or a weak `JWT_SECRET` rather than failing later.
+Configuration is validated at startup, so the server refuses to start with a
+missing `DATABASE_URL` or a weak `JWT_SECRET` instead of failing later.
 
-The mobile app reads one optional variable, `EXPO_PUBLIC_API_URL`, described
-above.
+The app reads one optional variable, `EXPO_PUBLIC_API_URL`, described above.
 
 ## Project layout
 
 ```
 Niwala/
-|-- docker-compose.yml        PostgreSQL 16
+|-- docker-compose.yml          PostgreSQL 16
 |-- backend/
 |   |-- prisma/
-|   |   |-- schema.prisma     Six models, two enums
-|   |   |-- migrations/       One migration
-|   |   +-- seed.ts           Demo data
+|   |   |-- schema.prisma       Six models, two enums
+|   |   |-- migrations/         Schema history
+|   |   +-- seed.ts             Demo accounts, restaurants and dishes
+|   |-- uploads/                Restaurant and dish photos, served as static files
 |   +-- src/
-|       |-- lib/              Prisma client, env, JWT, errors, transition table
-|       |-- middleware/       authenticate, authorize, validate, error handler
-|       |-- routes/           HTTP surface, thin
-|       |-- schemas/          Zod request schemas
-|       |-- services/         Business rules and every ownership check
+|       |-- lib/                Prisma client, env, JWT, errors, uploads, status rules
+|       |-- middleware/         authenticate, authorize, validate, error handler
+|       |-- routes/             HTTP surface, kept thin
+|       |-- schemas/            Zod request schemas
+|       |-- services/           Business rules and every ownership check
 |       +-- server.ts
 +-- mobile/
-    |-- App.tsx               Providers
+    |-- App.tsx                 Providers
     +-- src/
-        |-- api/              Typed client and endpoints
-        |-- auth/             Auth context, AsyncStorage
-        |-- cart/             Cart context
-        |-- components/       Shared UI
-        |-- navigation/       Role-aware navigators
-        |-- screens/          auth, customer, owner
-        +-- theme/            Colour, spacing, type
+        |-- api/                Typed client, endpoints, photo upload
+        |-- auth/               Session state, persisted with AsyncStorage
+        |-- cart/               Cart state
+        |-- orders/             Order refreshing and the unseen-changes badge
+        |-- components/         Cards, skeletons, status timeline, shared UI
+        |-- navigation/         Customer and owner tab navigators
+        |-- screens/            auth, customer, owner
+        |-- hooks/, lib/        Small helpers: formatting, confirmations, insets
+        +-- theme/              Colours, type scale, spacing
 ```
 
 Routes stay thin. Anything that decides whether an action is allowed lives in
 `services/`, so there is one place to read per resource.
 
+**Stack.** Backend: Express, TypeScript, Prisma, PostgreSQL, JWT, bcryptjs, Zod,
+multer. Mobile: Expo, React Native, TypeScript, React Navigation, TanStack
+Query, AsyncStorage, expo-image-picker. `react-native-web` and `react-dom` are
+included so the app also runs in a browser.
+
 ## API reference
 
-Every route except register and login needs `Authorization: Bearer <token>`.
+Every route except register, login and image files needs
+`Authorization: Bearer <token>`.
 
 **Auth**
 
@@ -179,11 +232,14 @@ Every route except register and login needs `Authorization: Bearer <token>`.
 | PATCH | `/meals/:id` | owner, must own the parent restaurant |
 | DELETE | `/meals/:id` | owner, must own the parent restaurant |
 
+Restaurants and meals accept an optional `imageUrl`, which must be a path
+returned by the upload route, or `null` to remove the photo.
+
 **Orders**
 
 | Method | Route | Who |
 | --- | --- | --- |
-| GET | `/orders` | customer sees their own, owner sees their restaurants' |
+| GET | `/orders` | a customer sees their own; an owner sees orders for their restaurants |
 | POST | `/orders` | customer, not blocked |
 | GET | `/orders/:id` | the customer who placed it, or the restaurant owner |
 | PATCH | `/orders/:id/status` | depends on the transition |
@@ -194,6 +250,13 @@ Every route except register and login needs `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | GET | `/users/customers` | owner |
 | PATCH | `/users/:id/blocked` | owner |
+
+**Photos**
+
+| Method | Route | Who |
+| --- | --- | --- |
+| POST | `/uploads/images` | owner; multipart form with one file in the field `image` |
+| GET | `/uploads/:file` | anyone; serves the stored image |
 
 Errors share one shape:
 
@@ -245,6 +308,29 @@ Meals inherit ownership from their restaurant.
 `authenticate` re-reads the user on every request, so a block applies to tokens
 issued before it - no waiting for expiry, no forced logout.
 
+## Photos
+
+Photos live as files in `backend/uploads/` and are served at `/uploads/...`.
+The database stores only the path, never the image itself.
+
+The folder is committed, so a fresh clone shows every photo as soon as the seed
+has run - there is nothing to download and no cloud storage to configure.
+Photos that owners upload while using the app are saved to the same folder.
+
+Uploads are checked on the server:
+
+- JPEG, PNG or WebP only, up to 5 MB.
+- The file content must actually be that type. A text file renamed to `.png`
+  is rejected and deleted.
+- Files get a random name; the name sent by the phone is never used.
+- A restaurant or dish can only point at a path this server created, never at
+  an outside URL.
+
+In the app, an owner picks a photo from the device, sees it straight away while
+it uploads, and saves the form once the upload has finished. A restaurant or
+dish without a photo shows a muted colour chosen from its cuisine with its
+initial, so there is never a broken image.
+
 ## Assumptions
 
 Where the brief was silent, the simplest reasonable reading was taken.
@@ -256,33 +342,44 @@ Where the brief was silent, the simplest reasonable reading was taken.
    orders already placed. Only new orders are refused.
 3. **Role is chosen at registration** rather than defaulting, so an owner
    account is never created by accident.
-4. **Browsing requires an account.** The brief describes no logged-out
+4. **Browsing requires an account.** The brief describes no signed-out
    experience.
-5. **A restaurant that exists but belongs to someone else returns 403, not
+5. **A restaurant that exists but belongs to another owner returns 403, not
    404.** Every restaurant is already listable, so hiding existence would buy
    nothing.
-6. **A restaurant cannot be deleted while any order is in flight** - `PLACED`,
-   `PROCESSING`, `IN_ROUTE` or `DELIVERED`. `DELIVERED` counts as in flight
-   because the customer has not confirmed receipt. Once every order is
-   `RECEIVED` or `CANCELED`, deletion is allowed and takes those orders with
-   it.
-7. **A meal that appears on an order cannot be deleted** - 409 rather than
-   silently corrupting order history.
-8. **Money is `Decimal(10,2)`** everywhere, never a float.
-9. **One line per meal per order.** Repeats are expressed with quantity, and a
-   duplicate line is rejected.
+6. **A restaurant cannot be deleted while any order is in progress** - Placed,
+   Processing, In Route or Delivered. Delivered counts as in progress because
+   the customer has not confirmed receipt. Once every order is Received or
+   Canceled, deletion is allowed and takes those orders with it.
+7. **A dish that appears on an order cannot be deleted**, so order history is
+   never corrupted.
+8. **Money is `Decimal(10,2)`** everywhere, never a float, and shown in
+   Pakistani rupees.
+9. **One line per dish per order.** Repeats are expressed with quantity.
+10. **Search runs on the device.** The restaurant list is small and already
+    loaded, so filtering it locally needs no extra endpoint.
+11. **Live updates use polling.** Order data refreshes every 5 seconds while a
+    screen is open, and immediately when the app returns to the foreground.
+    WebSockets would be more immediate but would add a server component the
+    brief does not need.
 
 ## Testing
 
-Verified by exercising the running API and driving the app in a browser, rather
-than by unit tests - a deliberate trade-off given the time budget, spending it
-on the behaviour a reviewer will check.
+Verification was done by exercising the running API and driving the app, rather
+than with an automated test suite - a deliberate trade-off for the time budget,
+spending it on the behaviour a reviewer will check.
 
-The end-to-end pass covers 103 assertions: both full role journeys, and the
-failure cases that matter - wrong roles, ownership violations on restaurants,
-meals and orders, blocked users, every invalid status transition, cross
-restaurant orders, manipulated totals and prices, invalid quantities and ids,
-bad authentication, and malformed requests.
+- **Backend:** an end-to-end pass of 103 checks covering both role journeys and
+  the failure cases that matter - wrong roles, ownership violations on
+  restaurants, dishes and orders, blocked users, every invalid status
+  transition, cross-restaurant orders, manipulated totals and prices, invalid
+  quantities and ids, bad authentication and malformed requests. The photo
+  upload route has its own 30 checks, including disguised files, oversized
+  files and path tricks.
+- **App:** both roles were walked through at phone size - registration, search,
+  cart, placing, cancelling and receiving orders, restaurant and dish management
+  with photos, order fulfilment and blocking - plus loading placeholders and the
+  error and retry path with the network cut off.
 
 Type checking is the fastest signal on both sides:
 
@@ -293,15 +390,44 @@ cd mobile && npx tsc --noEmit
 
 ## Known limitations
 
-- **No automated test suite.** The verification above was run by hand. A real
-  project would put those cases in Jest or Vitest and run them in CI.
-- **`react-native-web` and `react-dom`** are development conveniences that let
-  the app be opened in a browser. They are not needed on a device and can be
-  removed.
+- **No automated test suite.** The checks above were run by hand. A real
+  project would keep them in Jest or Vitest and run them in CI.
+- **Mostly verified in a browser.** The app was driven at phone size in a
+  browser and used on a phone, but notch spacing, keyboard behaviour and native
+  confirmation dialogs deserve a check on both iOS and Android.
+- **Live updates poll every 5 seconds** rather than being pushed.
 - **Deleting a restaurant removes its completed orders**, so finished order
-  history can disappear for a customer. In-flight orders are protected. Soft
-  deletion would be the fix.
+  history can disappear for a customer. Orders still in progress are protected.
+  Soft deletion would be the fix.
+- **Replaced or removed photos stay on disk.** Nothing cleans up files that no
+  restaurant or dish points to any more.
+- **Uploads are committed with the code.** That keeps the demo photos in the
+  repository, but photos uploaded while developing also show up as new files
+  in git.
 - **No refresh tokens, logout endpoint or password reset.** A token stays valid
   until it expires.
 - **No pagination.** Lists return everything, which is fine at demo scale.
-- **No image uploads.** Restaurants and meals are text only, as specified.
+
+## Photo credits
+
+All photos are from [Unsplash](https://unsplash.com) and used under the
+[Unsplash License](https://unsplash.com/license), which allows free use without
+attribution. They are credited here anyway.
+
+| Photo | Used for | Photographer |
+| --- | --- | --- |
+| [01](https://unsplash.com/photos/pizza-baking-in-wood-fired-oven-vHRFraV4U00) | Bella Napoli (cover) | Fabrizio Pullara |
+| [02](https://unsplash.com/photos/a-bowl-of-ramen-with-chopsticks-and-a-glass-of-beer-mE6kjov4rTg) | Sakura Ramen (cover) | Diego Lozano |
+| [03](https://unsplash.com/photos/cooked-tacos-lP5MCM6nZ5A) | Taco Libre (cover) | Chad Montano |
+| [04](https://unsplash.com/photos/a-table-filled-with-lots-of-different-types-of-food-YNfDiSsuU_E) | Afaq's kitchen (cover) | Takashi Yamada |
+| [11](https://unsplash.com/photos/a-pizza-with-cheese-and-basil-wgq8NVyXsYY) | Margherita Pizza (dish) | Luigi Boccardo |
+| [12](https://unsplash.com/photos/cooked-food-on-white-ceramic-plate-qfxAEVCDWiU) | Tagliatelle Bolognese (dish) | Louis Hansel |
+| [13](https://unsplash.com/photos/a-piece-of-cake-sitting-on-top-of-a-white-plate-d-Mx494kXAg) | Tiramisu (dish) | Gina's Auckland |
+| [14](https://unsplash.com/photos/pasta-dish-on-black-plate-QD9A1O2reYY) | Truffle Pasta (dish) | Jean-claude Attipoe |
+| [15](https://unsplash.com/photos/a-bowl-of-ramen-with-meat-eggs-noodles-and-vegetables-NHEL1M1Cv-A) | Tonkotsu Ramen (dish) | Huyen Bui |
+| [16](https://unsplash.com/photos/a-white-plate-topped-with-fried-food-on-top-of-a-wooden-table-TTupRwxPgoA) | Chicken Karaage (dish) | Dennis Zhang |
+| [17](https://unsplash.com/photos/slice-of-layered-matcha-cake-with-chocolate-drizzle-rcOhNdFL88A) | Matcha Cheesecake (dish) | James Lo |
+| [18](https://unsplash.com/photos/beef-tacos-with-onion-and-cilantro-z_PfaGzeN9E) | Carne Asada Tacos (dish) | Jeswin Thomas |
+| [19](https://unsplash.com/photos/a-plate-topped-with-a-quesadilla-cut-in-half-_BW-YmENFcM) | Chicken Quesadilla (dish) | Benjamin Guardia |
+| [20](https://unsplash.com/photos/food-on-sticks-on-plate-oUvYBNvTec0) | Elote (dish) | Drew Beamer |
+| [21](https://unsplash.com/photos/a-pan-filled-with-food-on-top-of-a-wooden-cutting-board-HRamW92xlCI) | Chicken Karahi (dish) | Rimsha Noor |

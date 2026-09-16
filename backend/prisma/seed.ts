@@ -28,6 +28,7 @@ type SeedRestaurant = {
   name: string;
   description: string;
   foodType: string;
+  imageUrl: string;
 };
 type SeedMeal = {
   id: string;
@@ -35,6 +36,7 @@ type SeedMeal = {
   name: string;
   description: string;
   price: string;
+  imageUrl: string;
 };
 
 const users: SeedUser[] = [
@@ -51,6 +53,7 @@ const restaurants: SeedRestaurant[] = [
     name: 'Bella Napoli',
     description: 'Wood-fired pizza and handmade pasta from a family recipe book.',
     foodType: 'Italian',
+    imageUrl: '/uploads/55555555-5555-4555-8555-000000000001.jpg',
   },
   {
     id: REST_2,
@@ -58,6 +61,7 @@ const restaurants: SeedRestaurant[] = [
     name: 'Sakura Ramen',
     description: 'Slow-simmered broths, fresh noodles, and small plates.',
     foodType: 'Japanese',
+    imageUrl: '/uploads/55555555-5555-4555-8555-000000000002.jpg',
   },
   {
     id: REST_3,
@@ -65,21 +69,22 @@ const restaurants: SeedRestaurant[] = [
     name: 'Taco Libre',
     description: 'Street-style tacos and grilled plates with house salsas.',
     foodType: 'Mexican',
+    imageUrl: '/uploads/55555555-5555-4555-8555-000000000003.jpg',
   },
 ];
 
 const meals: SeedMeal[] = [
-  { id: '44444444-4444-4444-8444-000000000001', restaurantId: REST_1, name: 'Margherita Pizza', description: 'San Marzano tomato, fior di latte, basil.', price: '1450' },
-  { id: '44444444-4444-4444-8444-000000000002', restaurantId: REST_1, name: 'Tagliatelle Bolognese', description: 'Fresh egg pasta with a six-hour beef ragu.', price: '1650' },
-  { id: '44444444-4444-4444-8444-000000000003', restaurantId: REST_1, name: 'Tiramisu', description: 'Espresso-soaked savoiardi and mascarpone cream.', price: '750' },
+  { id: '44444444-4444-4444-8444-000000000001', restaurantId: REST_1, name: 'Margherita Pizza', description: 'San Marzano tomato, fior di latte, basil.', price: '1450', imageUrl: '/uploads/55555555-5555-4555-8555-000000000011.jpg' },
+  { id: '44444444-4444-4444-8444-000000000002', restaurantId: REST_1, name: 'Tagliatelle Bolognese', description: 'Fresh egg pasta with a six-hour beef ragu.', price: '1650', imageUrl: '/uploads/55555555-5555-4555-8555-000000000012.jpg' },
+  { id: '44444444-4444-4444-8444-000000000003', restaurantId: REST_1, name: 'Tiramisu', description: 'Espresso-soaked savoiardi and mascarpone cream.', price: '750', imageUrl: '/uploads/55555555-5555-4555-8555-000000000013.jpg' },
 
-  { id: '44444444-4444-4444-8444-000000000004', restaurantId: REST_2, name: 'Tonkotsu Ramen', description: 'Twelve-hour pork broth, chashu, soft egg.', price: '1850' },
-  { id: '44444444-4444-4444-8444-000000000005', restaurantId: REST_2, name: 'Chicken Karaage', description: 'Crisp marinated thigh with yuzu mayo.', price: '950' },
-  { id: '44444444-4444-4444-8444-000000000006', restaurantId: REST_2, name: 'Matcha Cheesecake', description: 'Baked cheesecake with stone-ground matcha.', price: '850' },
+  { id: '44444444-4444-4444-8444-000000000004', restaurantId: REST_2, name: 'Tonkotsu Ramen', description: 'Twelve-hour pork broth, chashu, soft egg.', price: '1850', imageUrl: '/uploads/55555555-5555-4555-8555-000000000015.jpg' },
+  { id: '44444444-4444-4444-8444-000000000005', restaurantId: REST_2, name: 'Chicken Karaage', description: 'Crisp marinated thigh with yuzu mayo.', price: '950', imageUrl: '/uploads/55555555-5555-4555-8555-000000000016.jpg' },
+  { id: '44444444-4444-4444-8444-000000000006', restaurantId: REST_2, name: 'Matcha Cheesecake', description: 'Baked cheesecake with stone-ground matcha.', price: '850', imageUrl: '/uploads/55555555-5555-4555-8555-000000000017.jpg' },
 
-  { id: '44444444-4444-4444-8444-000000000007', restaurantId: REST_3, name: 'Carne Asada Tacos', description: 'Three tacos, grilled steak, onion, cilantro.', price: '1250' },
-  { id: '44444444-4444-4444-8444-000000000008', restaurantId: REST_3, name: 'Chicken Quesadilla', description: 'Flour tortilla, Oaxaca cheese, pulled chicken.', price: '1100' },
-  { id: '44444444-4444-4444-8444-000000000009', restaurantId: REST_3, name: 'Elote', description: 'Grilled corn, cotija, lime, chili.', price: '450' },
+  { id: '44444444-4444-4444-8444-000000000007', restaurantId: REST_3, name: 'Carne Asada Tacos', description: 'Three tacos, grilled steak, onion, cilantro.', price: '1250', imageUrl: '/uploads/55555555-5555-4555-8555-000000000018.jpg' },
+  { id: '44444444-4444-4444-8444-000000000008', restaurantId: REST_3, name: 'Chicken Quesadilla', description: 'Flour tortilla, Oaxaca cheese, pulled chicken.', price: '1100', imageUrl: '/uploads/55555555-5555-4555-8555-000000000019.jpg' },
+  { id: '44444444-4444-4444-8444-000000000009', restaurantId: REST_3, name: 'Elote', description: 'Grilled corn, cotija, lime, chili.', price: '450', imageUrl: '/uploads/55555555-5555-4555-8555-000000000020.jpg' },
 ];
 
 async function main() {
