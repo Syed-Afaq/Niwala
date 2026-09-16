@@ -58,6 +58,9 @@ model Restaurant {
   name        String
   description String
   foodType    String
+  /// Path to an uploaded cover image, e.g. /uploads/abc.jpg. The file lives on
+  /// disk; only the path is stored here. Null until the owner adds one.
+  imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -74,6 +77,8 @@ model Meal {
   name         String
   description  String
   price        Decimal  @db.Decimal(10, 2)
+  /// Path to an uploaded photo, e.g. /uploads/abc.jpg. Null until one is added.
+  imageUrl     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

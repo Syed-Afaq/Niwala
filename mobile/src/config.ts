@@ -13,3 +13,12 @@ const fallbackHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? `http://${fallbackHost}:4000`;
+
+/**
+ * The API stores image paths (/uploads/abc.jpg) rather than full URLs, so the
+ * same data works whichever address the app reaches the server on.
+ */
+export function imageSource(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return /^https?:\/\//.test(path) ? path : `${API_BASE_URL}${path}`;
+}

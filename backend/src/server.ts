@@ -7,7 +7,11 @@ import { restaurantRouter } from './routes/restaurant.routes';
 import { mealRouter } from './routes/meal.routes';
 import { orderRouter } from './routes/order.routes';
 import { userRouter } from './routes/user.routes';
+import { uploadRouter } from './routes/upload.routes';
+import { ensureUploadsDir, UPLOADS_DIR, UPLOADS_ROUTE } from './lib/uploads';
 import { errorHandler, notFound } from './middleware/error-handler';
+
+ensureUploadsDir();
 
 const app = express();
 app.use(cors());
@@ -27,6 +31,16 @@ app.use('/restaurants', restaurantRouter);
 app.use('/meals', mealRouter);
 app.use('/orders', orderRouter);
 app.use('/users', userRouter);
+
+// Uploaded images: served as static files, stored via the upload route.
+app.use(
+  UPLOADS_ROUTE,
+  express.static(UPLOADS_DIR, {
+    fallthrough: true,
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+  })
+);
+app.use(UPLOADS_ROUTE, uploadRouter);
 
 // Must stay last: unmatched routes, then the single error handler.
 app.use(notFound);

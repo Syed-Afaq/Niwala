@@ -22,6 +22,8 @@ export type Restaurant = {
   name: string;
   description: string;
   foodType: string;
+  /** Path such as /uploads/abc.jpg, or null when no photo was added. */
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
   meals?: Meal[];
@@ -34,6 +36,7 @@ export type Meal = {
   description: string;
   /** Exact decimal as a string, e.g. "11.5". */
   price: string;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

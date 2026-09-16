@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorSoft,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.errorBorder,
     padding: spacing.lg,
   },
   blockedTitle: { ...type.subheading, color: colors.error },

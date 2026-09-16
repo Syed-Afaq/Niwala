@@ -115,7 +115,7 @@ export function OwnerNavigator() {
           paddingBottom: 14,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-        tabBarBadgeStyle: { backgroundColor: colors.primary, color: '#FFFFFF', fontSize: 11 },
+        tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.onPrimary, fontSize: 11 },
       }}
     >
       <Tabs.Screen

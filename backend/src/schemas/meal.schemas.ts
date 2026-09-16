@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import { UPLOADED_IMAGE_PATH } from '../lib/uploads';
+
+/**
+ * An image path returned by POST /uploads/images, or null to remove the image.
+ * Arbitrary external URLs are rejected.
+ */
+const imageUrlSchema = z
+  .string()
+  .regex(UPLOADED_IMAGE_PATH, 'imageUrl must be a path returned by the upload endpoint')
+  .nullable();
 
 /**
  * Money is stored as Decimal(10,2), so reject anything that would not survive
@@ -20,6 +30,7 @@ export const createMealSchema = z.object({
     .min(1, 'Description is required')
     .max(500, 'Description is too long'),
   price: priceSchema,
+  imageUrl: imageUrlSchema.optional(),
 });
 
 export const updateMealSchema = createMealSchema

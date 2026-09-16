@@ -30,7 +30,7 @@ export function Button({
 }) {
   const isDisabled = disabled || loading;
   const palette = {
-    primary: { bg: colors.primary, fg: '#FFFFFF', border: colors.primary },
+    primary: { bg: colors.primary, fg: colors.onPrimary, border: colors.primary },
     secondary: { bg: colors.surface, fg: colors.text, border: colors.border },
     danger: { bg: colors.surface, fg: colors.error, border: colors.border },
   }[variant];
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: colors.errorSoft,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.errorBorder,
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
