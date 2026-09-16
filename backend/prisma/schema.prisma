@@ -78,8 +78,8 @@ model Meal {
   updatedAt    DateTime @updatedAt
 
   restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  /// Restrict: a meal that has been ordered cannot be deleted, so historical
-  /// orders never lose their line items.
+  /// A meal that has been ordered cannot be deleted, so historical orders
+  /// never lose their line items. See the FK note on OrderItem.meal.
   orderItems OrderItem[]
 
   @@index([restaurantId])
@@ -115,6 +115,9 @@ model OrderItem {
   unitPrice Decimal @db.Decimal(10, 2)
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Restrict: the database refuses to delete a meal that appears on an order.
+  /// Restaurant deletion therefore removes its orders explicitly first — see
+  /// restaurant.service.remove().
   meal  Meal  @relation(fields: [mealId], references: [id], onDelete: Restrict)
 
   /// One line per meal per order; repeats are expressed with quantity.

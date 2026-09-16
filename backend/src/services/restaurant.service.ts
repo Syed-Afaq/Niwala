@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { HttpError } from '../lib/http-error';
+import { ACTIVE_ORDER_STATUSES } from '../lib/order-status';
 import {
   CreateRestaurantInput,
   UpdateRestaurantInput,
@@ -62,7 +63,39 @@ export async function update(id: string, ownerId: string, input: UpdateRestauran
   return prisma.restaurant.update({ where: { id }, data: input });
 }
 
+/**
+ * Deleting a restaurant cascades to its meals and orders, so it is refused
+ * while any order is still in flight — a customer waiting on food must not
+ * have that order disappear because the owner removed the restaurant.
+ *
+ * Orders the user already received, and canceled ones, do not block deletion.
+ *
+ * The check and the delete share a transaction so an order placed at the same
+ * moment cannot slip past the check.
+ */
 export async function remove(id: string, ownerId: string) {
   await assertOwnedBy(id, ownerId);
-  await prisma.restaurant.delete({ where: { id } });
+
+  await prisma.$transaction(async (tx) => {
+    const activeOrders = await tx.order.count({
+      where: { restaurantId: id, status: { in: [...ACTIVE_ORDER_STATUSES] } },
+    });
+
+    if (activeOrders > 0) {
+      throw new HttpError(
+        409,
+        `This restaurant has ${activeOrders} order(s) still in progress. ` +
+          'Complete or cancel them before deleting it.'
+      );
+    }
+
+    // Every remaining order is finished, so remove them before the restaurant.
+    // This cannot be left to the cascade: deleting a restaurant would remove
+    // its meals in the same statement, and the database refuses to delete a
+    // meal while an OrderItem still references it. Clearing the orders first
+    // takes those references away. (Postgres checks Restrict immediately, and
+    // NoAction behaves the same way unless the constraint is deferrable.)
+    await tx.order.deleteMany({ where: { restaurantId: id } });
+    await tx.restaurant.delete({ where: { id } });
+  });
 }
