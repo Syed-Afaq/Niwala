@@ -5,6 +5,7 @@ import { prisma } from './lib/prisma';
 import { authRouter } from './routes/auth.routes';
 import { restaurantRouter } from './routes/restaurant.routes';
 import { mealRouter } from './routes/meal.routes';
+import { orderRouter } from './routes/order.routes';
 import { errorHandler, notFound } from './middleware/error-handler';
 
 const app = express();
@@ -23,6 +24,7 @@ app.get('/health', async (_req: Request, res: Response) => {
 app.use('/auth', authRouter);
 app.use('/restaurants', restaurantRouter);
 app.use('/meals', mealRouter);
+app.use('/orders', orderRouter);
 
 // Must stay last: unmatched routes, then the single error handler.
 app.use(notFound);
