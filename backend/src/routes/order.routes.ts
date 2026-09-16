@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { authenticate, currentUser } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
+import { requireNotBlocked } from '../middleware/require-not-blocked';
 import { validateBody, validateParams } from '../middleware/validate';
 import { idParamSchema } from '../schemas/common.schemas';
 import { createOrderSchema } from '../schemas/order.schemas';
@@ -24,6 +25,7 @@ orderRouter.get('/', async (req, res, next) => {
 orderRouter.post(
   '/',
   authorize(Role.REGULAR_USER),
+  requireNotBlocked,
   validateBody(createOrderSchema),
   async (req, res, next) => {
     try {

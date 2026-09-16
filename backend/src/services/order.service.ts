@@ -8,7 +8,9 @@ import { findTransition, nextStatusesFrom } from '../lib/order-transitions';
 /** Shape returned for a single order: everything the app needs to render it. */
 const orderInclude = {
   restaurant: { select: { id: true, name: true, foodType: true } },
-  user: { select: { id: true, email: true } },
+  // isBlocked included so an owner viewing an order can see, and toggle,
+  // the customer's block state without a second request.
+  user: { select: { id: true, email: true, isBlocked: true } },
   items: {
     include: { meal: { select: { id: true, name: true, description: true } } },
   },

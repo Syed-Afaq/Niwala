@@ -6,6 +6,7 @@ import { authRouter } from './routes/auth.routes';
 import { restaurantRouter } from './routes/restaurant.routes';
 import { mealRouter } from './routes/meal.routes';
 import { orderRouter } from './routes/order.routes';
+import { userRouter } from './routes/user.routes';
 import { errorHandler, notFound } from './middleware/error-handler';
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/auth', authRouter);
 app.use('/restaurants', restaurantRouter);
 app.use('/meals', mealRouter);
 app.use('/orders', orderRouter);
+app.use('/users', userRouter);
 
 // Must stay last: unmatched routes, then the single error handler.
 app.use(notFound);
