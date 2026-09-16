@@ -1,7 +1,20 @@
-import { RequestHandler } from 'express';
+import { Request, RequestHandler } from 'express';
 import { prisma } from '../lib/prisma';
 import { HttpError } from '../lib/http-error';
 import { verifyToken } from '../lib/jwt';
+import { AuthenticatedUser } from '../types/express';
+
+/**
+ * Returns the authenticated caller for a route that runs after `authenticate`.
+ * Keeps handlers free of non-null assertions, and fails loudly if a route is
+ * ever wired up without the middleware.
+ */
+export function currentUser(req: Request): AuthenticatedUser {
+  if (!req.user) {
+    throw new HttpError(401, 'Authentication required');
+  }
+  return req.user;
+}
 
 /**
  * Requires a valid `Authorization: Bearer <token>` header and attaches the

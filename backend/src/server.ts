@@ -3,6 +3,8 @@ import cors from 'cors';
 import { env } from './lib/env';
 import { prisma } from './lib/prisma';
 import { authRouter } from './routes/auth.routes';
+import { restaurantRouter } from './routes/restaurant.routes';
+import { mealRouter } from './routes/meal.routes';
 import { errorHandler, notFound } from './middleware/error-handler';
 
 const app = express();
@@ -19,6 +21,8 @@ app.get('/health', async (_req: Request, res: Response) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/restaurants', restaurantRouter);
+app.use('/meals', mealRouter);
 
 // Must stay last: unmatched routes, then the single error handler.
 app.use(notFound);
