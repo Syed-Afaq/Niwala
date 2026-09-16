@@ -83,9 +83,10 @@ const meals: SeedMeal[] = [
 ];
 
 async function main() {
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
-
   for (const user of users) {
+    // Hashed per user so every account gets its own salt.
+    const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+
     await prisma.user.upsert({
       where: { id: user.id },
       update: { email: user.email, role: user.role, passwordHash, isBlocked: false },

@@ -1,7 +1,9 @@
-import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { env } from './lib/env';
 import { prisma } from './lib/prisma';
+import { authRouter } from './routes/auth.routes';
+import { errorHandler, notFound } from './middleware/error-handler';
 
 const app = express();
 app.use(cors());
@@ -16,8 +18,12 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
+app.use('/auth', authRouter);
 
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
+// Must stay last: unmatched routes, then the single error handler.
+app.use(notFound);
+app.use(errorHandler);
+
+app.listen(env.PORT, () => {
+  console.log(`Backend listening on port ${env.PORT}`);
 });
