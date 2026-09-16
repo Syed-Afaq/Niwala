@@ -26,3 +26,6 @@ backend/prisma/migrations/dev.db
 # Editor
 .vscode/
 .idea/
+
+# Claude Code local session data (worktrees, settings)
+.claude/
