@@ -1,13 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { OrderStatus, OrderStatusHistory } from '../api/types';
+import type { Order, OrderStatus } from '../api/types';
+import { CheckGlyph, CrossGlyph } from './Glyphs';
+import { formatDateTime, formatTime, isSameDay } from '../lib/format';
 import { colors, radius, spacing, type } from '../theme/theme';
 
-/** Wording a customer understands, rather than the raw enum. */
+/** The status names used by the brief and shown throughout the app. */
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   PLACED: 'Placed',
-  PROCESSING: 'Preparing',
-  IN_ROUTE: 'On the way',
+  PROCESSING: 'Processing',
+  IN_ROUTE: 'In Route',
   DELIVERED: 'Delivered',
   RECEIVED: 'Received',
   CANCELED: 'Canceled',
@@ -31,49 +33,72 @@ export function StatusBadge({ status }: { status: OrderStatus }) {
   );
 }
 
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
+const HAPPY_PATH: OrderStatus[] = ['PLACED', 'PROCESSING', 'IN_ROUTE', 'DELIVERED', 'RECEIVED'];
 
 /**
- * The order's history, oldest first. Every recorded change is shown — nothing
- * is collapsed or overwritten, so the trail matches what the server stored.
+ * Where the order is on its journey.
+ *
+ * Steps it has reached are ticked and show the time recorded in the order
+ * history. Steps still ahead are hollow and carry no time, since none has
+ * happened. Nothing is inferred: a time only appears if the server stored one.
+ * A canceled order shows only the steps it actually went through.
  */
-export function StatusTimeline({ history }: { history: OrderStatusHistory[] }) {
-  if (history.length === 0) {
-    return <Text style={type.muted}>No history yet.</Text>;
-  }
+export function OrderProgress({ order }: { order: Pick<Order, 'status' | 'history' | 'createdAt'> }) {
+  const reachedAt = new Map<OrderStatus, string>();
+  for (const entry of order.history) reachedAt.set(entry.newStatus, entry.changedAt);
+
+  const steps: OrderStatus[] =
+    order.status === 'CANCELED' ? ['PLACED', 'CANCELED'] : HAPPY_PATH;
 
   return (
-    <View>
-      {history.map((entry, index) => {
-        const isLast = index === history.length - 1;
-        // A cancelled order should not end on a cheerful orange dot.
-        const currentColor =
-          entry.newStatus === 'CANCELED'
-            ? colors.error
-            : entry.newStatus === 'RECEIVED'
-              ? colors.success
-              : colors.primary;
+    <View testID="order-progress">
+      {steps.map((step, index) => {
+        const at = reachedAt.get(step);
+        const done = Boolean(at);
+        const isCurrent = step === order.status;
+        const isLast = index === steps.length - 1;
+        const nextDone = !isLast && reachedAt.has(steps[index + 1]);
+
+        const markerColor =
+          step === 'CANCELED' ? colors.error : step === 'RECEIVED' ? colors.success : colors.primary;
+
+        // Show the date as well when a step happened on a later day than the order.
+        const when = at
+          ? isSameDay(at, order.createdAt)
+            ? formatTime(at)
+            : formatDateTime(at)
+          : null;
+
         return (
-          <View key={entry.id} style={styles.step}>
+          <View key={step} style={styles.step} testID={`progress-${step}-${done ? 'done' : 'pending'}`}>
             <View style={styles.rail}>
-              <View
-                style={[styles.dot, isLast ? { backgroundColor: currentColor } : null]}
-              />
-              {!isLast ? <View style={styles.line} /> : null}
+              {done ? (
+                <View style={[styles.marker, { backgroundColor: markerColor, borderColor: markerColor }]}>
+                  {step === 'CANCELED' ? (
+                    <CrossGlyph color={colors.onPrimary} size={9} />
+                  ) : (
+                    <CheckGlyph color={colors.onPrimary} size={11} />
+                  )}
+                </View>
+              ) : (
+                <View style={styles.marker} />
+              )}
+              {!isLast ? (
+                <View style={[styles.connector, nextDone ? { backgroundColor: markerColor } : null]} />
+              ) : null}
             </View>
-            <View style={styles.stepBody}>
-              <Text style={[type.subheading, isLast ? { color: currentColor } : null]}>
-                {STATUS_LABEL[entry.newStatus]}
+
+            <View style={[styles.stepText, isLast ? null : styles.stepGap]}>
+              <Text
+                style={[
+                  styles.stepLabel,
+                  !done ? styles.stepPending : null,
+                  isCurrent ? { color: markerColor, fontWeight: '700' } : null,
+                ]}
+              >
+                {STATUS_LABEL[step]}
               </Text>
-              <Text style={type.muted}>{formatTime(entry.changedAt)}</Text>
+              {when ? <Text style={type.meta}>{when}</Text> : null}
             </View>
           </View>
         );
@@ -82,23 +107,38 @@ export function StatusTimeline({ history }: { history: OrderStatusHistory[] }) {
   );
 }
 
+const MARKER = 22;
+
 const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
     borderRadius: radius.sm,
   },
-  badgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  badgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   step: { flexDirection: 'row' },
-  rail: { width: 24, alignItems: 'center' },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.border,
-    marginTop: 5,
+  rail: { width: MARKER, alignItems: 'center', marginRight: spacing.md },
+  marker: {
+    width: MARKER,
+    height: MARKER,
+    borderRadius: MARKER / 2,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
-  stepBody: { flex: 1, paddingBottom: spacing.lg },
+  connector: { flex: 1, width: 2, minHeight: 14, backgroundColor: colors.border },
+  stepText: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    minHeight: MARKER,
+    paddingTop: 1,
+  },
+  stepGap: { paddingBottom: spacing.lg },
+  stepLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+  stepPending: { color: colors.textMuted, fontWeight: '500' },
 });

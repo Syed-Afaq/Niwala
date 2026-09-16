@@ -1,13 +1,18 @@
 import React from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '../../api/endpoints';
+import { describeError } from '../../api/client';
 import { useOrderUpdates } from '../../orders/OrderUpdatesContext';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
-import { describeError } from '../../api/client';
-import { StatusBadge } from '../../components/OrderStatus';
-import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
-import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
+import { useHeaderlessTopPadding } from '../../hooks/useScreenInsets';
+import { OrderCard } from '../../components/OrderCard';
+import { OrderListSkeleton } from '../../components/Skeleton';
+import { Button, EmptyState, ErrorState } from '../../components/ui';
+import { colors, spacing, type } from '../../theme/theme';
+import type { Order } from '../../api/types';
+
+const isFinished = (order: Order) => order.status === 'RECEIVED' || order.status === 'CANCELED';
 
 export function OrdersScreen({
   onOpenOrder,
@@ -22,16 +27,23 @@ export function OrdersScreen({
   });
   const { unseenIds } = useOrderUpdates();
   const pull = usePullToRefresh(query.refetch);
+  const topPadding = useHeaderlessTopPadding();
 
   if (query.isPending) {
-    return <Loading label="Loading your orders" />;
+    return (
+      <View style={{ paddingTop: topPadding - spacing.xl }}>
+        <OrderListSkeleton />
+      </View>
+    );
   }
 
   if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-      </View>
+      <ErrorState
+        title="Could not load your orders"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
@@ -41,77 +53,61 @@ export function OrdersScreen({
     return (
       <EmptyState
         title="No orders yet"
-        message="When you order something, you can follow it here from kitchen to doorstep."
+        message="When you order something, you can follow it here from the kitchen to your door."
         action={<Button label="Browse restaurants" onPress={onBrowse} />}
       />
     );
   }
 
+  const active = orders.filter((o) => !isFinished(o));
+  const past = orders.filter(isFinished);
+  const sections = [
+    ...(active.length ? [{ title: 'In progress', data: active }] : []),
+    ...(past.length ? [{ title: 'Past orders', data: past }] : []),
+  ];
+
   return (
-    <FlatList
-      data={orders}
+    <SectionList
+      sections={sections}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
-      }
+      contentContainerStyle={[styles.list, { paddingTop: topPadding }]}
+      stickySectionHeadersEnabled={false}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       ListHeaderComponent={
-        <Text style={[type.title, { marginBottom: spacing.lg }]}>Your orders</Text>
+        <View style={styles.header}>
+          <Text style={type.title}>Your orders</Text>
+          <Text style={[type.meta, { marginTop: spacing.xs }]}>
+            {active.length > 0
+              ? `${active.length} in progress`
+              : 'Nothing in progress right now'}
+          </Text>
+        </View>
       }
-      renderItem={({ item }) => {
-        const itemLabel = item.items.length === 1 ? 'item' : 'items';
-        const placed = new Date(item.createdAt).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-        });
-        return (
-          <Pressable
-            onPress={() => onOpenOrder(item.id)}
-            testID={`order-${item.id}`}
-            style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
-          >
-            <View style={styles.cardTop}>
-              <View style={styles.titleRow}>
-                {unseenIds.has(item.id) ? <View style={styles.unseenDot} /> : null}
-                <Text style={[type.subheading, styles.title]} numberOfLines={1}>
-                  {item.restaurant.name}
-                </Text>
-              </View>
-              <StatusBadge status={item.status} />
-            </View>
-            {unseenIds.has(item.id) ? <Text style={styles.unseenText}>Updated</Text> : null}
-            <Text style={[type.muted, { marginTop: spacing.xs }]}>
-              {item.items.length} {itemLabel} - {placed}
-            </Text>
-            <Text style={styles.total}>{formatPrice(item.totalAmount)}</Text>
-          </Pressable>
-        );
-      }}
+      renderSectionHeader={({ section }) => (
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+      )}
+      renderItem={({ item }) => (
+        <OrderCard order={item} unseen={unseenIds.has(item.id)} onPress={() => onOpenOrder(item.id)} />
+      )}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.lg, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  padded: { padding: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
   },
-  cardPressed: { borderColor: colors.primary },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
-  title: { flexShrink: 1 },
-  unseenDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  unseenText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700', marginTop: spacing.xs },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+  header: { marginBottom: spacing.md },
+  sectionTitle: {
+    ...type.label,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  total: { ...type.subheading, color: colors.primaryDark, marginTop: spacing.sm },
 });

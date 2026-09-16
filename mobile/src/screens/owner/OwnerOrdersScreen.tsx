@@ -1,116 +1,114 @@
 import React from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '../../api/endpoints';
+import { describeError } from '../../api/client';
 import { useOrderUpdates } from '../../orders/OrderUpdatesContext';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
-import { describeError } from '../../api/client';
-import { StatusBadge } from '../../components/OrderStatus';
-import { EmptyState, ErrorBanner, Loading } from '../../components/ui';
-import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
+import { useHeaderlessTopPadding } from '../../hooks/useScreenInsets';
+import { OrderCard } from '../../components/OrderCard';
+import { OrderListSkeleton } from '../../components/Skeleton';
+import { EmptyState, ErrorState } from '../../components/ui';
+import { colors, spacing, type } from '../../theme/theme';
+import type { Order } from '../../api/types';
 
-export function OwnerOrdersScreen({
-  onOpenOrder,
-}: {
-  onOpenOrder: (orderId: string) => void;
-}) {
+/** Orders the restaurant still has to act on. Delivered ones wait on the customer. */
+const needsRestaurant = (o: Order) =>
+  o.status === 'PLACED' || o.status === 'PROCESSING' || o.status === 'IN_ROUTE';
+const isFinished = (o: Order) => o.status === 'RECEIVED' || o.status === 'CANCELED';
+
+export function OwnerOrdersScreen({ onOpenOrder }: { onOpenOrder: (orderId: string) => void }) {
   const query = useQuery({
     queryKey: ['orders'],
     queryFn: () => orderApi.list().then((r) => r.orders),
   });
   const { unseenIds } = useOrderUpdates();
   const pull = usePullToRefresh(query.refetch);
+  const topPadding = useHeaderlessTopPadding();
 
   if (query.isPending) {
-    return <Loading label="Loading orders" />;
-  }
-
-  if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
+      <View style={{ paddingTop: topPadding - spacing.xl }}>
+        <OrderListSkeleton />
       </View>
     );
   }
 
+  if (query.isError && !query.data) {
+    return (
+      <ErrorState
+        title="Could not load orders"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
   const orders = query.data ?? [];
-  const active = orders.filter(
-    (o) => o.status !== 'RECEIVED' && o.status !== 'CANCELED'
-  ).length;
 
   if (orders.length === 0) {
     return (
       <EmptyState
         title="No orders yet"
-        message="Orders placed with your restaurants will appear here."
+        message="Orders placed with your restaurants will show up here, newest first."
       />
     );
   }
 
+  const toDo = orders.filter(needsRestaurant);
+  const waiting = orders.filter((o) => o.status === 'DELIVERED');
+  const done = orders.filter(isFinished);
+  const sections = [
+    ...(toDo.length ? [{ title: 'Needs your action', data: toDo }] : []),
+    ...(waiting.length ? [{ title: 'Waiting for the customer', data: waiting }] : []),
+    ...(done.length ? [{ title: 'Completed', data: done }] : []),
+  ];
+
   return (
-    <FlatList
-      data={orders}
+    <SectionList
+      sections={sections}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
-      }
+      contentContainerStyle={[styles.list, { paddingTop: topPadding }]}
+      stickySectionHeadersEnabled={false}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={type.title}>Orders</Text>
-          <Text style={type.muted}>
-            {active} still in progress out of {orders.length}
+          <Text style={[type.meta, { marginTop: spacing.xs }]}>
+            {toDo.length > 0
+              ? `${toDo.length} ${toDo.length === 1 ? 'needs' : 'need'} your action`
+              : 'You are all caught up'}
           </Text>
         </View>
       }
+      renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
       renderItem={({ item }) => (
-        <Pressable
+        <OrderCard
+          order={item}
+          showCustomer
+          unseen={unseenIds.has(item.id)}
           onPress={() => onOpenOrder(item.id)}
-          testID={`owner-order-${item.id}`}
-          style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
-        >
-          <View style={styles.cardTop}>
-            <View style={styles.titleRow}>
-              {unseenIds.has(item.id) ? <View style={styles.unseenDot} /> : null}
-              <Text style={[type.subheading, styles.cardTitle]} numberOfLines={1}>
-                {item.restaurant.name}
-              </Text>
-            </View>
-            <StatusBadge status={item.status} />
-          </View>
-          <Text style={[type.muted, { marginTop: spacing.xs }]} numberOfLines={1}>
-            {item.user.email}
-          </Text>
-          <Text style={styles.total}>{formatPrice(item.totalAmount)}</Text>
-          {unseenIds.has(item.id) ? <Text style={styles.unseenText}>Needs your attention</Text> : null}
-        </Pressable>
+        />
       )}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.lg, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  padded: { padding: spacing.lg },
-  header: { marginBottom: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
   },
-  cardPressed: { borderColor: colors.primary },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+  header: { marginBottom: spacing.md },
+  sectionTitle: {
+    ...type.label,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  cardTitle: { flexShrink: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1, flexGrow: 1 },
-  unseenDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  unseenText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700', marginTop: spacing.xs },
-  total: { ...type.subheading, color: colors.primaryDark, marginTop: spacing.sm },
 });

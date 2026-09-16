@@ -2,30 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ORDER_POLL_MS, useOrderUpdates } from '../../orders/OrderUpdatesContext';
-import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { orderApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
-import { StatusBadge, StatusTimeline } from '../../components/OrderStatus';
-import { Button, Card, ErrorBanner, Loading } from '../../components/ui';
-import { colors, formatPrice, spacing, type } from '../../theme/theme';
+import { ORDER_POLL_MS, useOrderUpdates } from '../../orders/OrderUpdatesContext';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { confirmAction } from '../../lib/confirm';
+import { OrderProgress } from '../../components/OrderStatus';
+import { OrderHeader, OrderReceipt, Section } from '../../components/OrderParts';
+import { OrderDetailSkeleton } from '../../components/Skeleton';
+import { Button, ErrorBanner, ErrorState } from '../../components/ui';
+import { colors, radius, spacing, type } from '../../theme/theme';
 import type { OrderStatus } from '../../api/types';
 
 export function OrderDetailScreen({ orderId }: { orderId: string }) {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-
+  const [actionError, setActionError] = useState<string | null>(null);
   const isFocused = useIsFocused();
   const { markSeen } = useOrderUpdates();
 
-  // Poll only while this screen is actually in front of the person. Stacks keep
-  // screens mounted in the background, and those should not keep fetching.
+  // Poll only while this screen is in front of the person. Stacks keep screens
+  // mounted in the background, and those should not keep fetching.
   const query = useQuery({
     queryKey: ['order', orderId],
     queryFn: () => orderApi.get(orderId).then((r) => r.order),
     refetchInterval: isFocused ? ORDER_POLL_MS : false,
   });
-
   const pull = usePullToRefresh(query.refetch);
 
   // Looking at the order is what clears its badge.
@@ -39,94 +40,91 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
       void queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
-    onError: (err) => setError(describeError(err)),
+    onError: (err) => setActionError(describeError(err)),
   });
 
   if (query.isPending) {
-    return <Loading label="Loading order" />;
+    return <OrderDetailSkeleton />;
   }
 
   // A failed background refresh keeps the order on screen rather than blanking it.
   if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-      </View>
+      <ErrorState
+        title="Could not load this order"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
   const order = query.data;
 
-  // Only the actions this customer may perform right now. The server checks
-  // the same thing again; this just avoids offering dead buttons.
+  // Only actions this customer may take right now. The server enforces the same
+  // rules; this just avoids offering buttons that would be refused.
   const canCancel = order.status === 'PLACED';
   const canReceive = order.status === 'DELIVERED';
   const isFinished = order.status === 'RECEIVED' || order.status === 'CANCELED';
 
+  function receive() {
+    setActionError(null);
+    changeStatus.mutate('RECEIVED');
+  }
+
+  function cancel() {
+    setActionError(null);
+    confirmAction({
+      title: 'Cancel this order?',
+      message: `${order.restaurant.name} has not started preparing it yet. This cannot be undone.`,
+      confirmLabel: 'Cancel order',
+      onConfirm: () => changeStatus.mutate('CANCELED'),
+    });
+  }
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
     >
-      <Text style={type.title}>{order.restaurant.name}</Text>
-      <View style={{ marginTop: spacing.sm, marginBottom: spacing.lg }}>
-        <StatusBadge status={order.status} />
-      </View>
+      <OrderHeader order={order} />
 
-      <ErrorBanner message={error} />
-
-      <Card>
-        <Text style={[type.label, { marginBottom: spacing.md }]}>ITEMS</Text>
-        {order.items.map((item) => (
-          <View key={item.id} style={styles.item}>
-            <Text style={type.body}>
-              {item.quantity} x {item.meal.name}
-            </Text>
-            <Text style={type.body}>
-              {formatPrice(Number(item.unitPrice) * item.quantity)}
-            </Text>
-          </View>
-        ))}
-        <View style={styles.totalRow}>
-          <Text style={type.subheading}>Total</Text>
-          <Text
-            style={[type.subheading, { color: colors.primaryDark }]}
-            testID="order-total"
-          >
-            {formatPrice(order.totalAmount)}
+      {canReceive ? (
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle}>Your order has arrived</Text>
+          <Text style={styles.calloutText}>
+            Let {order.restaurant.name} know once it is in your hands.
           </Text>
         </View>
-      </Card>
+      ) : null}
 
-      <Card style={{ marginTop: spacing.lg }}>
-        <Text style={[type.label, { marginBottom: spacing.md }]}>PROGRESS</Text>
-        <StatusTimeline history={order.history} />
-      </Card>
+      <ErrorBanner message={actionError} />
+
+      <Section title="Order progress">
+        <OrderProgress order={order} />
+      </Section>
+
+      <Section title="Your order">
+        <OrderReceipt order={order} />
+      </Section>
+
+      {canReceive ? (
+        <Button
+          label="I have received my order"
+          onPress={receive}
+          loading={changeStatus.isPending}
+          style={styles.primaryAction}
+          testID="receive-order"
+        />
+      ) : null}
 
       {canCancel ? (
         <Button
           label="Cancel order"
           variant="danger"
-          onPress={() => {
-            setError(null);
-            changeStatus.mutate('CANCELED');
-          }}
+          onPress={cancel}
           loading={changeStatus.isPending}
-          style={{ marginTop: spacing.xl }}
-        />
-      ) : null}
-
-      {canReceive ? (
-        <Button
-          label="I have received this order"
-          onPress={() => {
-            setError(null);
-            changeStatus.mutate('RECEIVED');
-          }}
-          loading={changeStatus.isPending}
-          style={{ marginTop: spacing.xl }}
+          style={styles.primaryAction}
+          testID="cancel-order"
         />
       ) : null}
 
@@ -134,7 +132,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
         <Text style={[type.muted, styles.footnote]}>
           {isFinished
             ? 'This order is complete.'
-            : 'Waiting on the restaurant for the next update.'}
+            : 'The restaurant will update this as your order moves along.'}
         </Text>
       ) : null}
     </ScrollView>
@@ -144,24 +142,19 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
 const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
     maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
-    paddingBottom: spacing.xxl,
   },
-  padded: { padding: spacing.lg },
-  item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+  callout: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.successSoft,
   },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
+  calloutTitle: { fontSize: 16, fontWeight: '700', color: colors.success },
+  calloutText: { ...type.body, color: colors.text, marginTop: 2 },
+  primaryAction: { marginTop: spacing.xl },
   footnote: { marginTop: spacing.xl, textAlign: 'center' },
 });

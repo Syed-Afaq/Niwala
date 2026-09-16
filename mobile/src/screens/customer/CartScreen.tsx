@@ -6,8 +6,39 @@ import { describeError } from '../../api/client';
 import { useCart } from '../../cart/CartContext';
 import { useAuth } from '../../auth/AuthContext';
 import { useOrderUpdates } from '../../orders/OrderUpdatesContext';
-import { Button, Card, EmptyState, ErrorBanner } from '../../components/ui';
+import { confirmAction } from '../../lib/confirm';
+import { FoodImage } from '../../components/FoodImage';
+import { Button, EmptyState, ErrorBanner } from '../../components/ui';
 import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
+
+/** Minus and plus as 40px targets with a small visible face. */
+function StepButton({
+  label,
+  onPress,
+  accessibilityLabel,
+  testID,
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+      style={styles.stepTarget}
+    >
+      {({ pressed }) => (
+        <View style={[styles.stepFace, pressed ? styles.stepFacePressed : null]}>
+          <Text style={styles.stepLabel}>{label}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
 
 export function CartScreen({
   onBrowse,
@@ -47,127 +78,181 @@ export function CartScreen({
     );
   }
 
+  const blocked = Boolean(user?.isBlocked);
+
+  const clearCart = () =>
+    confirmAction({
+      title: 'Clear your cart?',
+      message: 'Every dish will be removed.',
+      confirmLabel: 'Clear cart',
+      onConfirm: cart.clear,
+    });
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={type.title}>Your order</Text>
-      <Text style={[type.muted, { marginBottom: spacing.lg }]}>
-        From {cart.restaurant?.name}
-      </Text>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={type.title}>Your order</Text>
+        <Text style={[type.meta, { marginTop: spacing.xs }]}>From {cart.restaurant?.name}</Text>
 
-      <ErrorBanner message={error} />
-
-      {user?.isBlocked ? (
-        <View style={styles.blocked}>
-          <Text style={styles.blockedText}>
-            Your account has been blocked, so new orders cannot be placed.
-          </Text>
+        <View style={{ marginTop: spacing.lg }}>
+          <ErrorBanner message={error} />
         </View>
-      ) : null}
 
-      <Card>
-        {cart.lines.map((line, index) => (
-          <View
-            key={line.meal.id}
-            style={[styles.line, index > 0 ? styles.lineDivider : null]}
-          >
-            <View style={styles.lineText}>
-              <Text style={type.subheading}>{line.meal.name}</Text>
-              <Text style={type.muted}>{formatPrice(line.meal.price)} each</Text>
-            </View>
-
-            <View style={styles.stepper}>
-              <Pressable
-                onPress={() => cart.setQuantity(line.meal.id, line.quantity - 1)}
-                style={styles.stepperButton}
-                testID={`decrease-${line.meal.name}`}
-              >
-                <Text style={styles.stepperLabel}>-</Text>
-              </Pressable>
-              <Text style={styles.quantity} testID={`qty-${line.meal.name}`}>
-                {line.quantity}
-              </Text>
-              <Pressable
-                onPress={() => cart.setQuantity(line.meal.id, line.quantity + 1)}
-                style={styles.stepperButton}
-                testID={`increase-${line.meal.name}`}
-              >
-                <Text style={styles.stepperLabel}>+</Text>
-              </Pressable>
-            </View>
-
-            <Text style={styles.lineTotal}>
-              {formatPrice(Number(line.meal.price) * line.quantity)}
+        {blocked ? (
+          <View style={styles.blocked}>
+            <Text style={styles.blockedTitle}>Ordering is unavailable</Text>
+            <Text style={styles.blockedText}>
+              Your account has been blocked, so new orders cannot be placed.
             </Text>
           </View>
-        ))}
-      </Card>
+        ) : null}
 
-      <View style={styles.totalRow}>
-        <Text style={type.heading}>Total</Text>
-        <Text style={[type.heading, { color: colors.primaryDark }]} testID="cart-total">
-          {formatPrice(cart.total)}
-        </Text>
+        <View style={styles.lines}>
+          {cart.lines.map((line, index) => (
+            <View
+              key={line.meal.id}
+              style={[styles.line, index > 0 ? styles.lineDivider : null]}
+              testID={'cart-line-' + line.meal.name}
+            >
+              <FoodImage
+                path={line.meal.imageUrl}
+                name={line.meal.name}
+                toneKey={line.meal.name}
+                style={styles.thumb}
+                initialSize={20}
+              />
+              <View style={styles.lineText}>
+                <Text style={styles.lineName} numberOfLines={2}>
+                  {line.meal.name}
+                </Text>
+                <Text style={type.meta}>{formatPrice(line.meal.price)} each</Text>
+                <View style={styles.stepper}>
+                  <StepButton
+                    label="-"
+                    accessibilityLabel={'Remove one ' + line.meal.name}
+                    onPress={() => cart.setQuantity(line.meal.id, line.quantity - 1)}
+                    testID={'decrease-' + line.meal.name}
+                  />
+                  <Text style={styles.quantity} testID={'qty-' + line.meal.name}>
+                    {line.quantity}
+                  </Text>
+                  <StepButton
+                    label="+"
+                    accessibilityLabel={'Add one more ' + line.meal.name}
+                    onPress={() => cart.setQuantity(line.meal.id, line.quantity + 1)}
+                    testID={'increase-' + line.meal.name}
+                  />
+                </View>
+              </View>
+              <Text style={styles.lineTotal}>
+                {formatPrice(Number(line.meal.price) * line.quantity)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.summary}>
+          <View style={styles.summaryRow}>
+            <Text style={type.body}>
+              {cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'}
+            </Text>
+            <Text style={type.body}>{formatPrice(cart.total)}</Text>
+          </View>
+          <View style={[styles.summaryRow, styles.totalRow]}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue} testID="cart-total">
+              {formatPrice(cart.total)}
+            </Text>
+          </View>
+          <Text style={[type.muted, { marginTop: spacing.sm }]}>
+            The final amount is confirmed from current menu prices when you place the order.
+          </Text>
+        </View>
+
+        <Pressable onPress={clearCart} style={styles.clear} accessibilityRole="button">
+          <Text style={styles.clearText}>Clear cart</Text>
+        </Pressable>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button
+          label={'Place order  ' + formatPrice(cart.total)}
+          onPress={() => {
+            setError(null);
+            placeOrder.mutate();
+          }}
+          loading={placeOrder.isPending}
+          disabled={blocked}
+          testID="place-order"
+        />
       </View>
-      <Text style={type.muted}>
-        The restaurant confirms the final amount when your order is placed.
-      </Text>
-
-      <Button
-        label="Place order"
-        onPress={() => {
-          setError(null);
-          placeOrder.mutate();
-        }}
-        loading={placeOrder.isPending}
-        disabled={user?.isBlocked}
-        style={{ marginTop: spacing.xl }}
-      />
-      <Button
-        label="Clear cart"
-        variant="secondary"
-        onPress={cart.clear}
-        style={{ marginTop: spacing.md }}
-      />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   content: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
     maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
-    paddingBottom: spacing.xxl,
-  },
-  line: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  lineDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  lineText: { flex: 1 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  stepperButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  stepperLabel: { fontSize: 18, fontWeight: '700', color: colors.text, lineHeight: 20 },
-  quantity: { minWidth: 20, textAlign: 'center', fontSize: 15, fontWeight: '700' },
-  lineTotal: { minWidth: 64, textAlign: 'right', fontSize: 15, fontWeight: '700' },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.xl,
   },
   blocked: {
-    backgroundColor: colors.errorSoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    padding: spacing.lg,
     marginBottom: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.errorSoft,
+    borderWidth: 1,
+    borderColor: colors.errorBorder,
   },
-  blockedText: { color: colors.error, fontSize: 14 },
+  blockedTitle: { fontSize: 16, fontWeight: '700', color: colors.error },
+  blockedText: { ...type.body, color: colors.error, marginTop: 2 },
+  lines: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+  },
+  line: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+  lineDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  thumb: { width: 64, height: 64, borderRadius: radius.md },
+  lineText: { flex: 1, minWidth: 0 },
+  lineName: { fontSize: 16, fontWeight: '600', color: colors.text },
+  lineTotal: { fontSize: 16, fontWeight: '700', color: colors.text },
+  stepper: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, marginLeft: -8 },
+  stepTarget: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  stepFace: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepFacePressed: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  stepLabel: { fontSize: 18, fontWeight: '700', color: colors.text, lineHeight: 20 },
+  quantity: { minWidth: 24, textAlign: 'center', fontSize: 16, fontWeight: '700', color: colors.text },
+  summary: { marginTop: spacing.xl },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  totalRow: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  totalLabel: { fontSize: 18, fontWeight: '600', color: colors.text },
+  totalValue: { fontSize: 22, fontWeight: '700', color: colors.text },
+  clear: { alignSelf: 'center', marginTop: spacing.xl, minHeight: 40, justifyContent: 'center' },
+  clearText: { color: colors.textMuted, fontWeight: '600', fontSize: 15 },
+  footer: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
 });

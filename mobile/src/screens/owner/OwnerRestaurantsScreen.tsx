@@ -3,7 +3,11 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { useQuery } from '@tanstack/react-query';
 import { restaurantApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
-import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useHeaderlessTopPadding } from '../../hooks/useScreenInsets';
+import { RestaurantCard } from '../../components/RestaurantCard';
+import { RestaurantListSkeleton } from '../../components/Skeleton';
+import { Button, EmptyState, ErrorState } from '../../components/ui';
 import { colors, radius, spacing, type } from '../../theme/theme';
 
 export function OwnerRestaurantsScreen({
@@ -17,16 +21,24 @@ export function OwnerRestaurantsScreen({
     queryKey: ['my-restaurants'],
     queryFn: () => restaurantApi.mine().then((r) => r.restaurants),
   });
+  const pull = usePullToRefresh(query.refetch);
+  const topPadding = useHeaderlessTopPadding();
 
   if (query.isPending) {
-    return <Loading label="Loading your restaurants" />;
+    return (
+      <View style={{ paddingTop: topPadding - spacing.xl }}>
+        <RestaurantListSkeleton withSearch={false} />
+      </View>
+    );
   }
 
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-      </View>
+      <ErrorState
+        title="Could not load your restaurants"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
@@ -35,8 +47,8 @@ export function OwnerRestaurantsScreen({
   if (restaurants.length === 0) {
     return (
       <EmptyState
-        title="No restaurants yet"
-        message="Add your first restaurant to start taking orders on Niwala."
+        title="Add your first restaurant"
+        message="Give it a name, a cuisine and a cover photo, then build its menu so customers can order."
         action={<Button label="Add a restaurant" onPress={onCreateRestaurant} />}
       />
     );
@@ -46,69 +58,66 @@ export function OwnerRestaurantsScreen({
     <FlatList
       data={restaurants}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={query.isFetching} onRefresh={() => query.refetch()} />
-      }
+      contentContainerStyle={[styles.list, { paddingTop: topPadding }]}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Text style={type.title}>Your restaurants</Text>
-          <Button
-            label="Add a restaurant"
+          <View style={styles.headerText}>
+            <Text style={styles.eyebrow}>Your kitchen</Text>
+            <Text style={type.title}>Restaurants</Text>
+            <Text style={[type.meta, { marginTop: spacing.xs }]}>
+              {restaurants.length} {restaurants.length === 1 ? 'restaurant' : 'restaurants'} on
+              Niwala
+            </Text>
+          </View>
+          <Pressable
             onPress={onCreateRestaurant}
-            style={{ marginTop: spacing.lg }}
-          />
+            accessibilityRole="button"
+            testID="add-restaurant"
+            style={({ pressed }) => [styles.addButton, pressed ? styles.addPressed : null]}
+          >
+            <Text style={styles.addText}>+ New</Text>
+          </Pressable>
         </View>
       }
       renderItem={({ item }) => (
-        <Pressable
+        <RestaurantCard
+          restaurant={item}
           onPress={() => onOpenRestaurant(item.id, item.name)}
           testID={`owner-restaurant-${item.name}`}
-          style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
-        >
-          <View style={styles.cardTop}>
-            <Text style={[type.heading, styles.cardTitle]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{item.foodType}</Text>
-            </View>
-          </View>
-          <Text style={[type.muted, { marginTop: spacing.xs }]} numberOfLines={2}>
-            {item.description}
-          </Text>
-        </Pressable>
+        />
       )}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.lg, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  padded: { padding: spacing.lg },
-  header: { marginBottom: spacing.xl },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
   },
-  cardPressed: { borderColor: colors.primary },
-  cardTop: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
-  cardTitle: { flexShrink: 1, flexGrow: 1 },
-  tag: {
-    flexShrink: 0,
+  headerText: { flexShrink: 1 },
+  eyebrow: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: spacing.xs },
+  addButton: {
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tagText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700' },
+  addPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
+  addText: { color: colors.primaryDark, fontSize: 15, fontWeight: '700' },
 });

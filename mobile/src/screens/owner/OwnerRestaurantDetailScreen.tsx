@@ -1,25 +1,16 @@
-import React, { useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mealApi, restaurantApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
-import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
-import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { confirmAction, showMessage } from '../../lib/confirm';
+import { FoodImage } from '../../components/FoodImage';
+import { MealCard } from '../../components/MealCard';
+import { MenuSkeleton } from '../../components/Skeleton';
+import { Button, EmptyState, ErrorState } from '../../components/ui';
+import { colors, radius, spacing, type } from '../../theme/theme';
 import type { Meal } from '../../api/types';
-
-/** Alert is a no-op on web, so fall back to confirm() there. */
-function confirmAction(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) {
-      onConfirm();
-    }
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: onConfirm },
-  ]);
-}
 
 export function OwnerRestaurantDetailScreen({
   restaurantId,
@@ -35,13 +26,15 @@ export function OwnerRestaurantDetailScreen({
   onDeleted: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ['restaurant', restaurantId],
     queryFn: () => restaurantApi.get(restaurantId).then((r) => r.restaurant),
   });
+  const pull = usePullToRefresh(query.refetch);
 
+  // Failures are shown as a dialog rather than a banner at the top of the page,
+  // which would be out of view when deleting a dish further down the menu.
   const deleteRestaurant = useMutation({
     mutationFn: () => restaurantApi.remove(restaurantId),
     onSuccess: () => {
@@ -49,7 +42,7 @@ export function OwnerRestaurantDetailScreen({
       void queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       onDeleted();
     },
-    onError: (err) => setError(describeError(err)),
+    onError: (err) => showMessage('Could not delete restaurant', describeError(err)),
   });
 
   const deleteMeal = useMutation({
@@ -57,104 +50,139 @@ export function OwnerRestaurantDetailScreen({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['restaurant', restaurantId] });
     },
-    onError: (err) => setError(describeError(err)),
+    onError: (err) => showMessage('Could not delete dish', describeError(err)),
   });
 
   if (query.isPending) {
-    return <Loading label="Loading restaurant" />;
+    return <MenuSkeleton />;
   }
 
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-      </View>
+      <ErrorState
+        title="Could not load this restaurant"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
   const restaurant = query.data;
   const meals = restaurant.meals ?? [];
 
+  const askDeleteRestaurant = () =>
+    confirmAction({
+      title: 'Delete ' + restaurant.name + '?',
+      message:
+        'Its menu is removed too. Restaurants with orders still in progress cannot be deleted.',
+      confirmLabel: 'Delete restaurant',
+      onConfirm: () => deleteRestaurant.mutate(),
+    });
+
+  const askDeleteMeal = (meal: Meal) =>
+    confirmAction({
+      title: 'Delete ' + meal.name + '?',
+      message:
+        'It will be removed from the menu. Dishes that appear on past orders cannot be deleted.',
+      confirmLabel: 'Delete dish',
+      onConfirm: () => deleteMeal.mutate(meal.id),
+    });
+
+  const renderMealActions = (item: Meal) => (
+    <View style={styles.mealActions}>
+      <Pressable
+        onPress={() => onEditMeal(item)}
+        hitSlop={8}
+        style={styles.linkTarget}
+        testID={'edit-meal-' + item.name}
+      >
+        <Text style={styles.editLink}>Edit</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => askDeleteMeal(item)}
+        hitSlop={8}
+        style={styles.linkTarget}
+        testID={'delete-meal-' + item.name}
+      >
+        <Text style={styles.deleteLink}>Delete</Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <FlatList
       data={meals}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={type.title}>{restaurant.name}</Text>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{restaurant.foodType}</Text>
-          </View>
-          <Text style={[type.body, { marginTop: spacing.md }]}>
-            {restaurant.description}
-          </Text>
+        <View>
+          <FoodImage
+            path={restaurant.imageUrl}
+            name={restaurant.name}
+            toneKey={restaurant.foodType}
+            style={styles.cover}
+            initialSize={72}
+          />
+          <View style={styles.info}>
+            <Text style={styles.cuisine}>{restaurant.foodType}</Text>
+            <Text style={type.title}>{restaurant.name}</Text>
+            <Text style={styles.description}>{restaurant.description}</Text>
 
-          <ErrorBanner message={error} />
-
-          <View style={styles.actions}>
-            <Button
-              label="Edit details"
-              variant="secondary"
-              onPress={onEditRestaurant}
-              style={{ flex: 1 }}
-            />
-            <Button
-              label="Delete"
-              variant="danger"
-              loading={deleteRestaurant.isPending}
-              onPress={() => {
-                setError(null);
-                confirmAction(
-                  'Delete this restaurant?',
-                  'Its menu will be removed too. This cannot be undone.',
-                  () => deleteRestaurant.mutate()
-                );
-              }}
-              style={{ flex: 1 }}
-            />
+            <View style={styles.actions}>
+              <Button
+                label="Edit details"
+                variant="secondary"
+                onPress={onEditRestaurant}
+                style={styles.actionButton}
+                testID="edit-restaurant"
+              />
+              <Button
+                label="Delete"
+                variant="danger"
+                onPress={askDeleteRestaurant}
+                loading={deleteRestaurant.isPending}
+                style={styles.actionButton}
+                testID="delete-restaurant"
+              />
+            </View>
           </View>
 
           <View style={styles.menuHeader}>
-            <Text style={type.heading}>Menu</Text>
-            <Pressable onPress={onAddMeal} testID="add-meal">
-              <Text style={styles.addLink}>Add meal</Text>
+            <View>
+              <Text style={type.heading}>Menu</Text>
+              <Text style={type.meta}>
+                {meals.length} {meals.length === 1 ? 'dish' : 'dishes'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={onAddMeal}
+              accessibilityRole="button"
+              testID="add-meal"
+              style={({ pressed }) => [styles.addDish, pressed ? styles.addDishPressed : null]}
+            >
+              <Text style={styles.addDishText}>+ Add dish</Text>
             </Pressable>
           </View>
         </View>
       }
       ListEmptyComponent={
-        <EmptyState
-          title="No meals yet"
-          message="Add the first dish so customers have something to order."
-          action={<Button label="Add meal" onPress={onAddMeal} />}
-        />
+        <View style={styles.side}>
+          <EmptyState
+            title="No dishes yet"
+            message="Add the first dish, with a photo, so customers have something to order."
+            action={<Button label="Add dish" onPress={onAddMeal} />}
+          />
+        </View>
       }
       renderItem={({ item }) => (
-        <View style={styles.meal} testID={`owner-meal-${item.name}`}>
-          <View style={styles.mealText}>
-            <Text style={type.subheading}>{item.name}</Text>
-            <Text style={[type.muted, { marginTop: 2 }]} numberOfLines={2}>
-              {item.description}
-            </Text>
-            <Text style={styles.price}>{formatPrice(item.price)}</Text>
-          </View>
-          <View style={styles.mealActions}>
-            <Pressable onPress={() => onEditMeal(item)} testID={`edit-meal-${item.name}`}>
-              <Text style={styles.editLink}>Edit</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setError(null);
-                confirmAction('Delete this meal?', `${item.name} will be removed.`, () =>
-                  deleteMeal.mutate(item.id)
-                );
-              }}
-              testID={`delete-meal-${item.name}`}
-            >
-              <Text style={styles.deleteLink}>Delete</Text>
-            </Pressable>
-          </View>
+        <View style={styles.side}>
+          <MealCard
+            meal={item}
+            toneKey={restaurant.foodType}
+            testID={'owner-meal-' + item.name}
+            actions={renderMealActions(item)}
+          />
         </View>
       )}
     />
@@ -162,41 +190,38 @@ export function OwnerRestaurantDetailScreen({
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.lg, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  padded: { padding: spacing.lg },
-  header: { marginBottom: spacing.md },
-  tag: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    marginTop: spacing.sm,
-  },
-  tagText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700' },
+  list: { paddingBottom: spacing.xxl, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  cover: { width: '100%', aspectRatio: 16 / 9 },
+  info: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
+  cuisine: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: spacing.xs },
+  description: { ...type.body, color: colors.textMuted, marginTop: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  actionButton: { flex: 1 },
   menuHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  addLink: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  meal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
     marginBottom: spacing.md,
+    paddingTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  mealText: { flex: 1 },
-  price: { ...type.subheading, color: colors.primaryDark, marginTop: spacing.sm },
-  mealActions: { gap: spacing.md, alignItems: 'flex-end' },
-  editLink: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  deleteLink: { color: colors.error, fontWeight: '700', fontSize: 14 },
+  addDish: {
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+    justifyContent: 'center',
+  },
+  addDishPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
+  addDishText: { color: colors.primaryDark, fontSize: 15, fontWeight: '700' },
+  side: { paddingHorizontal: spacing.lg },
+  mealActions: { flexDirection: 'row', gap: spacing.sm },
+  linkTarget: { minHeight: 40, minWidth: 48, alignItems: 'center', justifyContent: 'center' },
+  editLink: { color: colors.primaryDark, fontWeight: '700', fontSize: 15 },
+  deleteLink: { color: colors.error, fontWeight: '700', fontSize: 15 },
 });

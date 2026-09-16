@@ -1,7 +1,8 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { Button, Card } from '../components/ui';
+import { useHeaderlessTopPadding } from '../hooks/useScreenInsets';
+import { Button } from '../components/ui';
 import { colors, radius, spacing, type } from '../theme/theme';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -11,29 +12,33 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function AccountScreen() {
   const { user, signOut } = useAuth();
+  const topPadding = useHeaderlessTopPadding();
+  const initial = (user?.email ?? '?').charAt(0).toUpperCase();
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={[type.title, { marginBottom: spacing.lg }]}>Account</Text>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: topPadding }]}>
+      <Text style={type.title}>Account</Text>
 
-      <Card>
-        <Text style={type.label}>SIGNED IN AS</Text>
-        <Text style={[type.subheading, { marginTop: spacing.xs }]} testID="account-email">
-          {user?.email ?? '-'}
-        </Text>
-
-        <Text style={[type.label, { marginTop: spacing.lg }]}>ROLE</Text>
-        <Text style={[type.body, { marginTop: spacing.xs }]} testID="account-role">
-          {user ? ROLE_LABEL[user.role] ?? user.role : '-'}
-        </Text>
-      </Card>
+      <View style={styles.profile}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initial}</Text>
+        </View>
+        <View style={styles.profileText}>
+          <Text style={styles.email} numberOfLines={1} testID="account-email">
+            {user?.email ?? '-'}
+          </Text>
+          <Text style={type.meta} testID="account-role">
+            {user ? ROLE_LABEL[user.role] ?? user.role : '-'}
+          </Text>
+        </View>
+      </View>
 
       {user?.isBlocked ? (
         <View style={styles.blocked}>
           <Text style={styles.blockedTitle}>Your account is blocked</Text>
           <Text style={styles.blockedText}>
-            You can still browse and follow existing orders, but new orders cannot be
-            placed. Contact the restaurant if you think this is a mistake.
+            You can still browse and follow your existing orders, but new orders cannot be placed.
+            Contact the restaurant if you think this is a mistake.
           </Text>
         </View>
       ) : null}
@@ -43,6 +48,7 @@ export function AccountScreen() {
         variant="secondary"
         onPress={() => void signOut()}
         style={{ marginTop: spacing.xl }}
+        testID="sign-out"
       />
     </ScrollView>
   );
@@ -50,19 +56,42 @@ export function AccountScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
     maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
   },
+  profile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 22, fontWeight: '700', color: colors.primaryDark },
+  profileText: { flex: 1, minWidth: 0 },
+  email: { fontSize: 17, fontWeight: '600', color: colors.text },
   blocked: {
     marginTop: spacing.lg,
+    padding: spacing.lg,
     backgroundColor: colors.errorSoft,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.errorBorder,
-    padding: spacing.lg,
   },
-  blockedTitle: { ...type.subheading, color: colors.error },
-  blockedText: { ...type.muted, color: colors.error, marginTop: spacing.xs },
+  blockedTitle: { fontSize: 16, fontWeight: '700', color: colors.error },
+  blockedText: { ...type.body, color: colors.error, marginTop: spacing.xs },
 });

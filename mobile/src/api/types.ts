@@ -67,7 +67,7 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
-  restaurant: Pick<Restaurant, 'id' | 'name' | 'foodType'> & { ownerId?: string };
+  restaurant: Pick<Restaurant, 'id' | 'name' | 'foodType' | 'imageUrl'> & { ownerId?: string };
   user: Pick<User, 'id' | 'email' | 'isBlocked'>;
   items: OrderItem[];
   history: OrderStatusHistory[];

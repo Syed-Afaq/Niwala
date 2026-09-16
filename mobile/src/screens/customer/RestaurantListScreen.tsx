@@ -6,7 +6,9 @@ import { describeError } from '../../api/client';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { RestaurantCard } from '../../components/RestaurantCard';
 import { SearchBar } from '../../components/SearchBar';
-import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
+import { Button, EmptyState, ErrorState } from '../../components/ui';
+import { RestaurantListSkeleton } from '../../components/Skeleton';
+import { useHeaderlessTopPadding } from '../../hooks/useScreenInsets';
 import { colors, spacing, type } from '../../theme/theme';
 import type { Restaurant } from '../../api/types';
 
@@ -32,6 +34,7 @@ export function RestaurantListScreen({
     queryFn: () => restaurantApi.list().then((r) => r.restaurants),
   });
   const pull = usePullToRefresh(query.refetch);
+  const topPadding = useHeaderlessTopPadding();
 
   const all = query.data ?? [];
   // The list is small and already loaded, so search runs on the device.
@@ -39,15 +42,20 @@ export function RestaurantListScreen({
   const isSearching = search.trim().length > 0;
 
   if (query.isPending) {
-    return <Loading label="Finding restaurants" />;
+    return (
+      <View style={{ paddingTop: topPadding - spacing.xl }}>
+        <RestaurantListSkeleton />
+      </View>
+    );
   }
 
   if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-        <Button label="Try again" variant="secondary" onPress={() => void query.refetch()} />
-      </View>
+      <ErrorState
+        title="Could not load restaurants"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
@@ -59,7 +67,7 @@ export function RestaurantListScreen({
     <FlatList
       data={visible}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingTop: topPadding }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
@@ -114,13 +122,11 @@ export function RestaurantListScreen({
 const styles = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
     maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
   },
-  padded: { padding: spacing.lg, gap: spacing.md },
   header: { marginBottom: spacing.xl },
   eyebrow: {
     fontSize: 13,

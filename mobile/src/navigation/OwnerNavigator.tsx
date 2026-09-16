@@ -10,6 +10,7 @@ import { OwnerOrderDetailScreen } from '../screens/owner/OwnerOrderDetailScreen'
 import { AccountScreen } from '../screens/AccountScreen';
 import { TabIcon } from '../components/TabIcon';
 import { useOrderUpdates } from '../orders/OrderUpdatesContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/theme';
 
 const RestaurantsStack = createNativeStackNavigator();
@@ -26,7 +27,7 @@ const headerStyles = {
 function RestaurantsNavigator() {
   return (
     <RestaurantsStack.Navigator screenOptions={headerStyles}>
-      <RestaurantsStack.Screen name="MyRestaurants" options={{ headerShown: false }}>
+      <RestaurantsStack.Screen name="MyRestaurants" options={{ headerShown: false, title: 'Your restaurants' }}>
         {({ navigation }) => (
           <OwnerRestaurantsScreen
             onOpenRestaurant={(id, name) =>
@@ -39,7 +40,13 @@ function RestaurantsNavigator() {
 
       <RestaurantsStack.Screen
         name="OwnerRestaurantDetail"
-        options={({ route }: any) => ({ title: route.params?.name ?? 'Restaurant' })}
+        // The name is the large title under the cover photo; the header keeps
+        // only the back button, while title still names the browser tab.
+        options={({ route }: any) => ({
+          title: route.params?.name ?? 'Restaurant',
+          headerTitle: '',
+          headerShadowVisible: false,
+        })}
       >
         {({ navigation, route }: any) => (
           <OwnerRestaurantDetailScreen
@@ -81,7 +88,7 @@ function RestaurantsNavigator() {
 function OrdersNavigator() {
   return (
     <OrdersStack.Navigator screenOptions={headerStyles}>
-      <OrdersStack.Screen name="OwnerOrderList" options={{ headerShown: false }}>
+      <OrdersStack.Screen name="OwnerOrderList" options={{ headerShown: false, title: 'Orders' }}>
         {({ navigation }) => (
           <OwnerOrdersScreen
             onOpenOrder={(orderId) =>
@@ -100,6 +107,7 @@ function OrdersNavigator() {
 
 export function OwnerNavigator() {
   const orderUpdates = useOrderUpdates();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs.Navigator
@@ -110,11 +118,15 @@ export function OwnerNavigator() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 72,
+          // Each tab item pads itself by 5px, so the 24px icon, the label gap
+          // and a 14px label need 58px of content height; less clips the label.
+          // The bottom padding is the safe-area inset where there is one
+          // (iPhone home indicator), or a fixed 12px where there is not.
+          height: 8 + 58 + Math.max(insets.bottom, 12),
           paddingTop: 8,
-          paddingBottom: 14,
+          paddingBottom: Math.max(insets.bottom, 12),
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '600', marginTop: 2 },
         tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.onPrimary, fontSize: 11 },
       }}
     >

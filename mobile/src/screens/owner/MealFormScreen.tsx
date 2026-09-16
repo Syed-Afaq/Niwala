@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { FormScroll } from '../../components/FormScroll';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mealApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
@@ -76,9 +77,14 @@ export function MealFormScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[type.title, { marginBottom: spacing.lg }]}>
+    <FormScroll>
+      <Text style={[type.title, { marginBottom: spacing.xs }]}>
         {isEditing ? 'Edit meal' : 'New meal'}
+      </Text>
+      <Text style={[type.muted, { marginBottom: spacing.xl }]}>
+        {isEditing
+          ? 'Changes show up on the menu straight away.'
+          : 'A clear photo and an honest description help dishes sell.'}
       </Text>
 
       <ErrorBanner message={error} />
@@ -126,17 +132,10 @@ export function MealFormScreen({
         loading={save.isPending}
         disabled={photoUploading}
       />
-    </ScrollView>
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    maxWidth: 640,
-    width: '100%',
-    alignSelf: 'center',
-    paddingBottom: spacing.xxl,
-  },
   textarea: { minHeight: 80, paddingTop: spacing.md, textAlignVertical: 'top' },
 });

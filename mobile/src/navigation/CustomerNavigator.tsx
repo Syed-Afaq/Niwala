@@ -10,6 +10,7 @@ import { AccountScreen } from '../screens/AccountScreen';
 import { useCart } from '../cart/CartContext';
 import { TabIcon } from '../components/TabIcon';
 import { useOrderUpdates } from '../orders/OrderUpdatesContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/theme';
 
 const BrowseStack = createNativeStackNavigator();
@@ -77,7 +78,7 @@ function BrowseNavigator() {
 function OrdersNavigator() {
   return (
     <OrdersStack.Navigator screenOptions={headerStyles}>
-      <OrdersStack.Screen name="OrderList" options={{ headerShown: false }}>
+      <OrdersStack.Screen name="OrderList" options={{ headerShown: false, title: 'Your orders' }}>
         {({ navigation }) => (
           <OrdersScreen
             onOpenOrder={(orderId) => navigation.navigate('OrderDetail', { id: orderId })}
@@ -96,6 +97,7 @@ function OrdersNavigator() {
 export function CustomerNavigator() {
   const cart = useCart();
   const orderUpdates = useOrderUpdates();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs.Navigator
@@ -106,11 +108,15 @@ export function CustomerNavigator() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 72,
+          // Each tab item pads itself by 5px, so the 24px icon, the label gap
+          // and a 14px label need 58px of content height; less clips the label.
+          // The bottom padding is the safe-area inset where there is one
+          // (iPhone home indicator), or a fixed 12px where there is not.
+          height: 8 + 58 + Math.max(insets.bottom, 12),
           paddingTop: 8,
-          paddingBottom: 14,
+          paddingBottom: Math.max(insets.bottom, 12),
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '600', marginTop: 2 },
         tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.onPrimary, fontSize: 11 },
       }}
     >

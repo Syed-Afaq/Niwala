@@ -7,7 +7,7 @@ import { findTransition, nextStatusesFrom } from '../lib/order-transitions';
 
 /** Shape returned for a single order: everything the app needs to render it. */
 const orderInclude = {
-  restaurant: { select: { id: true, name: true, foodType: true } },
+  restaurant: { select: { id: true, name: true, foodType: true, imageUrl: true } },
   // isBlocked included so an owner viewing an order can see, and toggle,
   // the customer's block state without a second request.
   user: { select: { id: true, email: true, isBlocked: true } },
@@ -112,7 +112,7 @@ export async function listFor(user: AuthenticatedUser) {
 export async function getFor(id: string, user: AuthenticatedUser) {
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { ...orderInclude, restaurant: { select: { id: true, name: true, foodType: true, ownerId: true } } },
+    include: { ...orderInclude, restaurant: { select: { id: true, name: true, foodType: true, imageUrl: true, ownerId: true } } },
   });
 
   if (!order) {

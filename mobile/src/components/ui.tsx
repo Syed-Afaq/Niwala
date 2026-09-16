@@ -44,6 +44,7 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: palette.bg, borderColor: palette.border },
+        // Press feedback: a slight dip in size and tone, no motion library needed.
         pressed && !isDisabled ? styles.buttonPressed : null,
         isDisabled ? styles.buttonDisabled : null,
         style,
@@ -76,22 +77,42 @@ export function TextField({
   );
 }
 
-export function Card({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: ViewStyle;
-}) {
-  return <View style={[styles.card, style]}>{children}</View>;
-}
-
 /** One consistent banner for API and validation failures. */
 export function ErrorBanner({ message }: { message?: string | null }) {
   if (!message) return null;
   return (
     <View style={styles.banner}>
       <Text style={styles.bannerText}>{message}</Text>
+    </View>
+  );
+}
+
+/**
+ * Something went wrong loading a screen. Says so in plain words and offers a
+ * retry, instead of leaving an empty page or a raw error.
+ */
+export function ErrorState({
+  message,
+  onRetry,
+  title = 'Could not load this',
+}: {
+  message: string;
+  onRetry?: () => void;
+  title?: string;
+}) {
+  return (
+    <View style={styles.centered} testID="error-state">
+      <Text style={[type.heading, { textAlign: 'center' }]}>{title}</Text>
+      <Text
+        style={[type.muted, { textAlign: 'center', marginTop: spacing.sm, maxWidth: 300 }]}
+      >
+        {message}
+      </Text>
+      {onRetry ? (
+        <View style={{ marginTop: spacing.lg }}>
+          <Button label="Try again" variant="secondary" onPress={onRetry} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -137,7 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
-  buttonPressed: { opacity: 0.85 },
+  buttonPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   buttonDisabled: { opacity: 0.5 },
   buttonLabel: { fontSize: 15, fontWeight: '600' },
   field: { marginBottom: spacing.lg },
@@ -154,13 +175,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: colors.error },
   fieldError: { ...type.muted, color: colors.error, marginTop: spacing.xs },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
   banner: {
     backgroundColor: colors.errorSoft,
     borderWidth: 1,

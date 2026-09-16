@@ -23,6 +23,7 @@ export function MealCard({
   toneKey,
   quantityInCart = 0,
   onAdd,
+  actions,
   testID,
 }: {
   meal: Pick<Meal, 'name' | 'description' | 'price' | 'imageUrl'>;
@@ -30,6 +31,8 @@ export function MealCard({
   toneKey: string;
   quantityInCart?: number;
   onAdd?: () => void;
+  /** Replaces the add button, e.g. edit and delete links in the owner view. */
+  actions?: React.ReactNode;
   testID?: string;
 }) {
   const bump = useRef(new Animated.Value(1)).current;
@@ -81,6 +84,7 @@ export function MealCard({
                 </Pressable>
               </Animated.View>
             ) : null}
+            {actions ?? null}
           </View>
         </View>
       </View>

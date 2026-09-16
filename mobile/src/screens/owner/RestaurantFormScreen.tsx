@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { FormScroll } from '../../components/FormScroll';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { restaurantApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
@@ -72,9 +73,14 @@ export function RestaurantFormScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[type.title, { marginBottom: spacing.lg }]}>
+    <FormScroll>
+      <Text style={[type.title, { marginBottom: spacing.xs }]}>
         {isEditing ? 'Edit restaurant' : 'New restaurant'}
+      </Text>
+      <Text style={[type.muted, { marginBottom: spacing.xl }]}>
+        {isEditing
+          ? 'Changes show up for customers straight away.'
+          : 'Tell customers what you serve. A good cover photo makes a real difference.'}
       </Text>
 
       <ErrorBanner message={error} />
@@ -121,17 +127,10 @@ export function RestaurantFormScreen({
         loading={save.isPending}
         disabled={photoUploading}
       />
-    </ScrollView>
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    maxWidth: 640,
-    width: '100%',
-    alignSelf: 'center',
-    paddingBottom: spacing.xxl,
-  },
   textarea: { minHeight: 96, paddingTop: spacing.md, textAlignVertical: 'top' },
 });

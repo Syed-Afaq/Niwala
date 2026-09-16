@@ -8,7 +8,8 @@ import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { FoodImage } from '../../components/FoodImage';
 import { MealCard } from '../../components/MealCard';
 import { CartSummaryBar } from '../../components/CartSummaryBar';
-import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
+import { EmptyState, ErrorState } from '../../components/ui';
+import { MenuSkeleton } from '../../components/Skeleton';
 import { colors, radius, spacing, type } from '../../theme/theme';
 import type { Meal } from '../../api/types';
 
@@ -29,15 +30,16 @@ export function RestaurantDetailScreen({
   const pull = usePullToRefresh(query.refetch);
 
   if (query.isPending) {
-    return <Loading label="Loading menu" />;
+    return <MenuSkeleton />;
   }
 
   if (query.isError && !query.data) {
     return (
-      <View style={styles.padded}>
-        <ErrorBanner message={describeError(query.error)} />
-        <Button label="Try again" variant="secondary" onPress={() => void query.refetch()} />
-      </View>
+      <ErrorState
+        title="Could not load this menu"
+        message={describeError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 
@@ -130,7 +132,6 @@ const MAX_WIDTH = 640;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  padded: { padding: spacing.lg, gap: spacing.md },
   list: { paddingBottom: spacing.xxl, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
   cover: { width: '100%', aspectRatio: 16 / 9 },
   info: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
