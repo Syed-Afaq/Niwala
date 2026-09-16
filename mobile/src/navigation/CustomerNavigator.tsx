@@ -9,6 +9,7 @@ import { OrderDetailScreen } from '../screens/customer/OrderDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { useCart } from '../cart/CartContext';
 import { TabIcon } from '../components/TabIcon';
+import { useOrderUpdates } from '../orders/OrderUpdatesContext';
 import { colors } from '../theme/theme';
 
 const BrowseStack = createNativeStackNavigator();
@@ -87,6 +88,7 @@ function OrdersNavigator() {
 
 export function CustomerNavigator() {
   const cart = useCart();
+  const orderUpdates = useOrderUpdates();
 
   return (
     <Tabs.Navigator
@@ -102,6 +104,7 @@ export function CustomerNavigator() {
           paddingBottom: 14,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarBadgeStyle: { backgroundColor: colors.primary, color: '#FFFFFF', fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -120,6 +123,8 @@ export function CustomerNavigator() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ color }) => <TabIcon name="orders" color={color} />,
+          // Orders that are new or changed since they were last opened.
+          tabBarBadge: orderUpdates.unseenCount > 0 ? orderUpdates.unseenCount : undefined,
         }}
       />
       <Tabs.Screen

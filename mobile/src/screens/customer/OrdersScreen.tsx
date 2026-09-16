@@ -2,6 +2,8 @@ import React from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '../../api/endpoints';
+import { useOrderUpdates } from '../../orders/OrderUpdatesContext';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { describeError } from '../../api/client';
 import { StatusBadge } from '../../components/OrderStatus';
 import { Button, EmptyState, ErrorBanner, Loading } from '../../components/ui';
@@ -18,12 +20,14 @@ export function OrdersScreen({
     queryKey: ['orders'],
     queryFn: () => orderApi.list().then((r) => r.orders),
   });
+  const { unseenIds } = useOrderUpdates();
+  const pull = usePullToRefresh(query.refetch);
 
   if (query.isPending) {
     return <Loading label="Loading your orders" />;
   }
 
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return (
       <View style={styles.padded}>
         <ErrorBanner message={describeError(query.error)} />
@@ -49,7 +53,7 @@ export function OrdersScreen({
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
       refreshControl={
-        <RefreshControl refreshing={query.isFetching} onRefresh={() => query.refetch()} />
+        <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
       }
       ListHeaderComponent={
         <Text style={[type.title, { marginBottom: spacing.lg }]}>Your orders</Text>
@@ -67,9 +71,15 @@ export function OrdersScreen({
             style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
           >
             <View style={styles.cardTop}>
-              <Text style={type.subheading}>{item.restaurant.name}</Text>
+              <View style={styles.titleRow}>
+                {unseenIds.has(item.id) ? <View style={styles.unseenDot} /> : null}
+                <Text style={[type.subheading, styles.title]} numberOfLines={1}>
+                  {item.restaurant.name}
+                </Text>
+              </View>
               <StatusBadge status={item.status} />
             </View>
+            {unseenIds.has(item.id) ? <Text style={styles.unseenText}>Updated</Text> : null}
             <Text style={[type.muted, { marginTop: spacing.xs }]}>
               {item.items.length} {itemLabel} - {placed}
             </Text>
@@ -93,6 +103,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardPressed: { borderColor: colors.primary },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
+  title: { flexShrink: 1 },
+  unseenDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  unseenText: { color: colors.primaryDark, fontSize: 12, fontWeight: '700', marginTop: spacing.xs },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',

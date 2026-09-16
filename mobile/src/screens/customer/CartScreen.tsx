@@ -5,6 +5,7 @@ import { orderApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
 import { useCart } from '../../cart/CartContext';
 import { useAuth } from '../../auth/AuthContext';
+import { useOrderUpdates } from '../../orders/OrderUpdatesContext';
 import { Button, Card, EmptyState, ErrorBanner } from '../../components/ui';
 import { colors, formatPrice, radius, spacing, type } from '../../theme/theme';
 
@@ -17,6 +18,7 @@ export function CartScreen({
 }) {
   const cart = useCart();
   const { user } = useAuth();
+  const { markSeen } = useOrderUpdates();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +28,8 @@ export function CartScreen({
         cart.lines.map((line) => ({ mealId: line.meal.id, quantity: line.quantity }))
       ),
     onSuccess: ({ order }) => {
+      // Your own new order is not news to you.
+      markSeen(order);
       cart.clear();
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
       onOrderPlaced(order.id);

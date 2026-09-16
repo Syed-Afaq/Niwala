@@ -9,6 +9,7 @@ import { OwnerOrdersScreen } from '../screens/owner/OwnerOrdersScreen';
 import { OwnerOrderDetailScreen } from '../screens/owner/OwnerOrderDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { TabIcon } from '../components/TabIcon';
+import { useOrderUpdates } from '../orders/OrderUpdatesContext';
 import { colors } from '../theme/theme';
 
 const RestaurantsStack = createNativeStackNavigator();
@@ -98,6 +99,8 @@ function OrdersNavigator() {
 }
 
 export function OwnerNavigator() {
+  const orderUpdates = useOrderUpdates();
+
   return (
     <Tabs.Navigator
       screenOptions={{
@@ -112,6 +115,7 @@ export function OwnerNavigator() {
           paddingBottom: 14,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarBadgeStyle: { backgroundColor: colors.primary, color: '#FFFFFF', fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -128,6 +132,8 @@ export function OwnerNavigator() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ color }) => <TabIcon name="orders" color={color} />,
+          // Orders that are new or changed since they were last opened.
+          tabBarBadge: orderUpdates.unseenCount > 0 ? orderUpdates.unseenCount : undefined,
         }}
       />
       <Tabs.Screen

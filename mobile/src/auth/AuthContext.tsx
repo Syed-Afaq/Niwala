@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/endpoints';
 import { setAuthToken, setOnUnauthorized } from '../api/client';
 import type { Role, User } from '../api/types';
@@ -31,8 +32,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
+  const queryClient = useQueryClient();
 
   const persist = useCallback(async (nextUser: User, token: string) => {
+    queryClient.clear();
     setAuthToken(token);
     setUser(nextUser);
     setStatus('signedIn');
@@ -40,14 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       [TOKEN_KEY, token],
       [USER_KEY, JSON.stringify(nextUser)],
     ]);
-  }, []);
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
     setAuthToken(null);
     setUser(null);
     setStatus('signedOut');
+    // Drop every cached response, so the next account to sign in on this
+    // device never sees orders or restaurants that belonged to this one.
+    queryClient.clear();
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
-  }, []);
+  }, [queryClient]);
 
   // Restore a previous session before showing anything, so the app does not
   // flash the login screen at someone who is already signed in.

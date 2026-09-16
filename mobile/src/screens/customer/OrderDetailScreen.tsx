@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ORDER_POLL_MS, useOrderUpdates } from '../../orders/OrderUpdatesContext';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { orderApi } from '../../api/endpoints';
 import { describeError } from '../../api/client';
 import { StatusBadge, StatusTimeline } from '../../components/OrderStatus';
@@ -12,10 +15,23 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
+  const isFocused = useIsFocused();
+  const { markSeen } = useOrderUpdates();
+
+  // Poll only while this screen is actually in front of the person. Stacks keep
+  // screens mounted in the background, and those should not keep fetching.
   const query = useQuery({
     queryKey: ['order', orderId],
     queryFn: () => orderApi.get(orderId).then((r) => r.order),
+    refetchInterval: isFocused ? ORDER_POLL_MS : false,
   });
+
+  const pull = usePullToRefresh(query.refetch);
+
+  // Looking at the order is what clears its badge.
+  useEffect(() => {
+    if (isFocused && query.data) markSeen(query.data);
+  }, [isFocused, query.data, markSeen]);
 
   const changeStatus = useMutation({
     mutationFn: (status: OrderStatus) => orderApi.setStatus(orderId, status),
@@ -30,7 +46,8 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
     return <Loading label="Loading order" />;
   }
 
-  if (query.isError) {
+  // A failed background refresh keeps the order on screen rather than blanking it.
+  if (query.isError && !query.data) {
     return (
       <View style={styles.padded}>
         <ErrorBanner message={describeError(query.error)} />
@@ -47,7 +64,12 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
   const isFinished = order.status === 'RECEIVED' || order.status === 'CANCELED';
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
+      }
+    >
       <Text style={type.title}>{order.restaurant.name}</Text>
       <View style={{ marginTop: spacing.sm, marginBottom: spacing.lg }}>
         <StatusBadge status={order.status} />
