@@ -76,7 +76,7 @@ export function RestaurantListScreen({
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Good food, delivered</Text>
-          <Text style={type.title}>Restaurants</Text>
+          <Text style={type.title}>NIWALA</Text>
           <Text style={[type.meta, styles.subtitle]}>{subtitle}</Text>
           <View style={styles.search}>
             <SearchBar

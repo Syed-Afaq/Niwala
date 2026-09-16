@@ -64,10 +64,9 @@ export function OwnerRestaurantsScreen({
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.eyebrow}>Your kitchen</Text>
-            <Text style={type.title}>Restaurants</Text>
+            <Text style={type.title}>NIWALA</Text>
             <Text style={[type.meta, { marginTop: spacing.xs }]}>
-              {restaurants.length} {restaurants.length === 1 ? 'restaurant' : 'restaurants'} on
-              Niwala
+              {restaurants.length} {restaurants.length === 1 ? 'restaurant' : 'restaurants'}
             </Text>
           </View>
           <Pressable
